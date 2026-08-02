@@ -1,0 +1,2129 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Unit I · Basics of Unmanned Aerial Vehicles — Flight Plan Notes</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Saira+Condensed:wght@500;600;700;800&family=Spectral:ital,wght@0,400;0,500;0,600;1,400&family=IBM+Plex+Mono:wght@400;500;600&display=swap');
+
+:root{
+  --chart:#E4E8D8;        /* sectional chart paper */
+  --vellum:#F6F7F0;       /* panel */
+  --ink:#151B13;
+  --ink2:#4C5548;
+  --magenta:#B3157E;      /* airspace magenta */
+  --blue:#1E5F8C;         /* controlled airspace blue */
+  --amber:#D98200;        /* caution */
+  --rule:rgba(21,27,19,.16);
+  --rule-2:rgba(21,27,19,.34);
+  --disp:'Saira Condensed','Arial Narrow',sans-serif;
+  --body:'Spectral',Georgia,serif;
+  --mono:'IBM Plex Mono',ui-monospace,Consolas,monospace;
+}
+
+*{box-sizing:border-box}
+html{scroll-behavior:smooth;scroll-padding-top:96px}
+body{
+  margin:0;background:var(--chart);color:var(--ink);font-family:var(--body);
+  font-size:16px;line-height:1.62;
+  background-image:
+    linear-gradient(rgba(21,27,19,.045) 1px,transparent 1px),
+    linear-gradient(90deg,rgba(21,27,19,.045) 1px,transparent 1px);
+  background-size:34px 34px;
+}
+h1,h2,h3,h4{font-family:var(--disp);text-transform:uppercase;letter-spacing:.045em;line-height:1.05;margin:0}
+p{margin:0 0 .85em}
+a{color:var(--blue)}
+:focus-visible{outline:2.5px solid var(--magenta);outline-offset:3px}
+
+/* ---------- top bar ---------- */
+.hud{position:sticky;top:0;z-index:40;background:rgba(228,232,216,.93);backdrop-filter:blur(7px);
+  border-bottom:1.5px solid var(--rule-2)}
+.hud-in{max-width:1280px;margin:0 auto;padding:9px 20px;display:flex;align-items:center;gap:18px}
+.hud-id{font-family:var(--mono);font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--ink2)}
+.hud-id b{color:var(--magenta);font-weight:600}
+.hud-title{font-family:var(--disp);font-weight:800;font-size:17px;letter-spacing:.06em;margin-right:auto}
+.hud-prog{display:flex;align-items:center;gap:9px;font-family:var(--mono);font-size:11px;color:var(--ink2)}
+.prog-track{width:130px;height:5px;background:rgba(21,27,19,.14);border-radius:0}
+.prog-fill{height:100%;width:0;background:var(--magenta);transition:width .25s}
+
+/* ---------- shell ---------- */
+.shell{max-width:1280px;margin:0 auto;padding:0 20px 90px;display:grid;grid-template-columns:216px 1fr;gap:40px}
+.rail{position:sticky;top:96px;align-self:start;height:max-content;padding-top:26px}
+.rail-h{font-family:var(--mono);font-size:10px;letter-spacing:.2em;text-transform:uppercase;color:var(--ink2);margin-bottom:10px;padding-bottom:7px;border-bottom:1px solid var(--rule-2)}
+.rail a{display:flex;gap:9px;align-items:baseline;padding:4px 0;text-decoration:none;color:var(--ink2);font-family:var(--disp);
+  font-size:14px;letter-spacing:.05em;text-transform:uppercase;border-bottom:1px dotted transparent}
+.rail a span{font-family:var(--mono);font-size:10px;color:var(--magenta);min-width:20px}
+.rail a:hover{color:var(--ink)}
+.rail a.on{color:var(--ink);font-weight:700}
+.rail a.on span{background:var(--magenta);color:var(--vellum);padding:1px 3px}
+
+/* ---------- hero ---------- */
+.hero{padding:34px 0 8px}
+.eyebrow{font-family:var(--mono);font-size:11px;letter-spacing:.24em;text-transform:uppercase;color:var(--magenta)}
+.hero h1{font-size:clamp(38px,6.4vw,74px);font-weight:800;margin:10px 0 6px;letter-spacing:.02em}
+.hero h1 em{font-style:normal;color:var(--magenta)}
+.hero-sub{max-width:56ch;color:var(--ink2);font-size:17px}
+.chartbox{margin-top:22px;border:1.5px solid var(--rule-2);background:var(--vellum);position:relative;overflow:hidden}
+.chartbox svg{display:block;width:100%;height:auto}
+.chart-cap{display:flex;flex-wrap:wrap;gap:6px 20px;padding:9px 14px;border-top:1px solid var(--rule);font-family:var(--mono);
+  font-size:10.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink2)}
+.wp{cursor:pointer}
+.wp circle{transition:r .18s,fill .18s}
+.wp:hover circle.hit{r:15}
+.wp:hover text{fill:var(--magenta)}
+
+/* ---------- sections ---------- */
+.leg{padding:52px 0 8px;border-top:1.5px solid var(--rule-2);margin-top:44px}
+.leg-head{display:flex;gap:14px;align-items:flex-start;margin-bottom:20px}
+.leg-no{font-family:var(--mono);font-size:11px;letter-spacing:.14em;color:var(--vellum);background:var(--ink);padding:3px 6px;margin-top:5px}
+.leg h2{font-size:clamp(25px,3.6vw,38px);font-weight:800}
+.leg-kicker{font-family:var(--mono);font-size:10.5px;letter-spacing:.18em;text-transform:uppercase;color:var(--magenta);margin-bottom:4px}
+.lede{font-size:17.5px;max-width:66ch}
+
+.panel{background:var(--vellum);border:1.5px solid var(--rule-2);padding:20px 22px;margin:20px 0}
+.panel-t{font-family:var(--disp);font-weight:700;font-size:16px;letter-spacing:.09em;text-transform:uppercase;
+  display:flex;align-items:center;gap:9px;margin-bottom:14px;padding-bottom:9px;border-bottom:1px solid var(--rule)}
+.panel-t::before{content:"";width:9px;height:9px;background:var(--magenta);flex:none;transform:rotate(45deg)}
+.panel-t small{margin-left:auto;font-family:var(--mono);font-size:10px;letter-spacing:.14em;color:var(--ink2);text-transform:uppercase;font-weight:400}
+
+.two{display:grid;grid-template-columns:1fr 1fr;gap:22px}
+.three{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
+
+/* key list */
+ul.kl{list-style:none;padding:0;margin:0}
+ul.kl li{padding:7px 0 7px 20px;border-bottom:1px dotted var(--rule-2);position:relative}
+ul.kl li:last-child{border-bottom:0}
+ul.kl li::before{content:"▸";position:absolute;left:0;color:var(--magenta);font-size:12px;top:8px}
+ul.kl b{font-family:var(--disp);font-size:16px;letter-spacing:.04em;text-transform:uppercase}
+.mono{font-family:var(--mono);font-size:12.5px}
+.def{border-left:3px solid var(--magenta);padding:2px 0 2px 14px;margin:14px 0;font-size:17px}
+.note{background:rgba(217,130,0,.1);border:1px solid rgba(217,130,0,.45);padding:11px 14px;font-size:14.5px;margin:14px 0}
+.note b{font-family:var(--disp);letter-spacing:.06em;text-transform:uppercase;color:var(--amber)}
+
+/* table */
+table.t{width:100%;border-collapse:collapse;font-size:14px}
+table.t th{font-family:var(--mono);font-size:10px;letter-spacing:.14em;text-transform:uppercase;text-align:left;
+  padding:8px 9px;border-bottom:1.5px solid var(--ink);color:var(--ink2)}
+table.t td{padding:8px 9px;border-bottom:1px solid var(--rule);vertical-align:top}
+table.t tr:hover td{background:rgba(179,21,126,.06)}
+table.t td.hl{color:var(--magenta);font-weight:600}
+
+/* controls */
+.ctl{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:14px}
+button.chip{font-family:var(--disp);font-size:14px;letter-spacing:.06em;text-transform:uppercase;padding:6px 13px;
+  background:transparent;border:1.5px solid var(--rule-2);color:var(--ink2);cursor:pointer}
+button.chip:hover{border-color:var(--ink);color:var(--ink)}
+button.chip.on{background:var(--ink);border-color:var(--ink);color:var(--vellum)}
+button.chip.mag.on{background:var(--magenta);border-color:var(--magenta)}
+.slider{display:grid;grid-template-columns:1fr auto;gap:6px 12px;align-items:center;margin:12px 0}
+.slider label{font-family:var(--mono);font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--ink2);grid-column:1/-1}
+.slider input[type=range]{width:100%;accent-color:var(--magenta)}
+.slider output{font-family:var(--mono);font-size:14px;font-weight:600;color:var(--magenta);min-width:86px;text-align:right}
+input[type=number]{font-family:var(--mono);font-size:13px;padding:5px 7px;border:1.5px solid var(--rule-2);background:#fff;width:100%}
+.field{margin-bottom:9px}
+.field label{display:block;font-family:var(--mono);font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--ink2);margin-bottom:3px}
+
+/* readouts */
+.reads{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:1.5px;background:var(--rule-2);border:1.5px solid var(--rule-2)}
+.read{background:var(--vellum);padding:10px 12px}
+.read i{font-style:normal;display:block;font-family:var(--mono);font-size:9.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--ink2)}
+.read b{display:block;font-family:var(--disp);font-size:26px;font-weight:700;letter-spacing:.02em;line-height:1.15}
+.read b s{text-decoration:none;font-size:13px;color:var(--ink2);font-weight:500}
+.read.warn b{color:var(--amber)} .read.bad b{color:var(--magenta)} .read.good b{color:var(--blue)}
+
+/* multirotor stage */
+.stage{display:grid;grid-template-columns:1fr 250px;gap:20px;align-items:start}
+.stage-svg{background:var(--vellum);border:1px solid var(--rule);position:relative}
+.stage-svg svg{display:block;width:100%;height:auto}
+@keyframes spin{to{transform:rotate(360deg)}}
+.prop{transform-origin:center;transform-box:fill-box;animation:spin .55s linear infinite}
+.prop.ccw{animation-direction:reverse}
+
+/* component map */
+.lanes{display:grid;gap:12px}
+.lane{border:1px solid var(--rule);background:var(--vellum);padding:11px 12px}
+.lane h4{font-size:13px;letter-spacing:.12em;color:var(--ink2);margin-bottom:9px}
+.lane.power{border-left:4px solid var(--magenta)}
+.lane.control{border-left:4px solid var(--blue)}
+.lane.payload{border-left:4px solid var(--amber)}
+.blocks{display:flex;flex-wrap:wrap;gap:7px;align-items:center}
+.blk{font-family:var(--disp);font-size:13.5px;letter-spacing:.05em;text-transform:uppercase;padding:6px 11px;border:1.5px solid var(--rule-2);
+  background:#fff;cursor:pointer;color:var(--ink2)}
+.blk:hover{border-color:var(--ink);color:var(--ink)}
+.blk.on{background:var(--ink);color:var(--vellum);border-color:var(--ink)}
+.arrow{font-family:var(--mono);color:var(--rule-2);font-size:14px}
+.detail{margin-top:14px;border-top:1px solid var(--rule);padding-top:12px;min-height:104px}
+.detail h4{font-size:19px;margin-bottom:3px}
+.detail .spec{font-family:var(--mono);font-size:11.5px;color:var(--magenta);letter-spacing:.06em;margin-bottom:7px}
+
+/* telemetry */
+.tele{display:grid;grid-template-columns:200px 1fr;gap:18px}
+.hzn{border:1.5px solid var(--rule-2);overflow:hidden;background:#0e1410}
+.tape{font-family:var(--mono);font-size:11.5px;line-height:1.9}
+.tape div{display:flex;justify-content:space-between;border-bottom:1px dotted var(--rule);padding:1px 0}
+.tape s{text-decoration:none;color:var(--ink2);letter-spacing:.1em;text-transform:uppercase;font-size:10px}
+.tape b{font-weight:600}
+.alerts{margin-top:12px;min-height:56px;display:flex;flex-direction:column;gap:5px}
+.alert{font-family:var(--mono);font-size:11.5px;padding:5px 9px;border-left:3px solid var(--magenta);background:rgba(179,21,126,.08)}
+.alert.amb{border-color:var(--amber);background:rgba(217,130,0,.1)}
+
+/* cards */
+.cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(232px,1fr));gap:12px}
+.card{border:1.5px solid var(--rule-2);background:var(--vellum);padding:14px;cursor:pointer;transition:transform .16s}
+.card:hover{transform:translateY(-3px);border-color:var(--magenta)}
+.card h4{font-size:16px;margin-bottom:5px}
+.card .tag{font-family:var(--mono);font-size:9.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--magenta)}
+.card p{font-size:14px;margin:6px 0 0;color:var(--ink2)}
+.card .fix{display:none;margin-top:9px;padding-top:8px;border-top:1px dotted var(--rule-2);font-size:13.5px}
+.card.open .fix{display:block}
+.card.open{border-color:var(--magenta)}
+
+/* quiz */
+.q{border-bottom:1px solid var(--rule);padding:14px 0}
+.q p.stem{font-weight:600;margin-bottom:8px}
+.opt{display:block;width:100%;text-align:left;font-family:var(--body);font-size:14.5px;padding:6px 11px;margin-bottom:5px;
+  background:#fff;border:1.5px solid var(--rule);cursor:pointer;color:var(--ink)}
+.opt:hover{border-color:var(--ink2)}
+.opt.right{border-color:var(--blue);background:rgba(30,95,140,.11);font-weight:600}
+.opt.wrong{border-color:var(--magenta);background:rgba(179,21,126,.09);text-decoration:line-through}
+.exp{display:none;font-size:13.5px;color:var(--ink2);border-left:3px solid var(--blue);padding-left:11px;margin-top:7px}
+.exp.show{display:block}
+
+/* misc */
+.stat-row{display:flex;flex-wrap:wrap;gap:10px;font-family:var(--mono);font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink2)}
+.foot{margin-top:52px;border-top:1.5px solid var(--rule-2);padding-top:16px;font-family:var(--mono);font-size:11px;letter-spacing:.1em;
+  text-transform:uppercase;color:var(--ink2);display:flex;flex-wrap:wrap;gap:14px;justify-content:space-between}
+.badge{display:inline-block;font-family:var(--mono);font-size:10px;letter-spacing:.12em;text-transform:uppercase;
+  border:1px solid var(--rule-2);padding:1px 6px;color:var(--ink2)}
+
+/* figures */
+.fig{margin:20px 0;border:1.5px solid var(--rule-2);background:var(--vellum);padding:16px 18px 12px}
+.fig svg{display:block;width:100%;height:auto}
+.fig figcaption{margin-top:11px;padding-top:9px;border-top:1px solid var(--rule);font-family:var(--mono);
+  font-size:11px;letter-spacing:.05em;color:var(--ink2);line-height:1.55}
+.fig figcaption b{color:var(--magenta);letter-spacing:.14em;margin-right:6px}
+
+/* abbreviations */
+abbr[title]{border-bottom:1px dotted var(--magenta);text-decoration:none;cursor:help}
+abbr[title]:hover{background:rgba(179,21,126,.1)}
+.abbr-pop{position:fixed;left:50%;bottom:18px;transform:translateX(-50%);background:var(--ink);color:var(--vellum);
+  font-family:var(--mono);font-size:12.5px;line-height:1.5;padding:9px 15px;z-index:60;max-width:min(92vw,540px);
+  opacity:0;pointer-events:none;transition:opacity .18s;border-left:4px solid var(--magenta)}
+.abbr-pop.on{opacity:1}
+
+/* key takeaways */
+.tk{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:1.5px;background:var(--rule-2);border:1.5px solid var(--rule-2)}
+.tk-item{background:var(--vellum);padding:17px 18px;display:flex;gap:14px;align-items:flex-start}
+.tk-item i{font-style:normal;font-family:var(--disp);font-size:30px;font-weight:800;color:var(--magenta);line-height:.9;min-width:36px}
+.tk-item h4{font-size:16.5px;margin-bottom:5px}
+.tk-item p{font-size:14.5px;margin:0;color:var(--ink2);line-height:1.55}
+.headline{border:1.5px solid var(--ink);background:var(--ink);color:var(--chart);padding:20px 22px;margin:20px 0}
+.headline h3{font-size:clamp(19px,2.6vw,26px);color:var(--chart);margin-bottom:8px}
+.headline p{margin:0;font-size:16px;opacity:.9}
+.headline b{color:#F09CD0}
+
+/* glossary */
+.gloss{column-count:2;column-gap:28px}
+.gloss div{break-inside:avoid;padding:5px 0;border-bottom:1px dotted var(--rule);font-size:14px;line-height:1.45}
+.gloss b{font-family:var(--mono);font-size:12px;color:var(--magenta);letter-spacing:.03em}
+input.search{font-family:var(--mono);font-size:13px;padding:7px 10px;border:1.5px solid var(--rule-2);background:#fff;width:100%;margin-bottom:14px}
+
+@media(max-width:960px){
+  .shell{grid-template-columns:1fr;gap:0}
+  .rail{position:static;padding:16px 0 0;display:flex;gap:8px;overflow-x:auto;border-bottom:1px solid var(--rule)}
+  .rail-h{display:none}
+  .rail a{flex:none;border:1px solid var(--rule-2);padding:4px 9px;font-size:12.5px}
+  .two,.three,.stage,.tele{grid-template-columns:1fr}
+  .gloss{column-count:1}
+  .stage-svg{order:-1}
+}
+@media(prefers-reduced-motion:reduce){
+  *{animation:none!important;transition:none!important}
+  html{scroll-behavior:auto}
+}
+</style>
+</head>
+<body>
+
+<div class="hud">
+  <div class="hud-in">
+    <div class="hud-id">UNIT <b>I</b></div>
+    <div class="hud-title">Basics of Unmanned Aerial Vehicles</div>
+    <div class="hud-prog"><span id="progTxt">0%</span><div class="prog-track"><div class="prog-fill" id="progFill"></div></div></div>
+  </div>
+</div>
+
+<div class="shell">
+
+  <nav class="rail no-abbr" id="rail">
+    <div class="rail-h">Route / 12 legs + arrival</div>
+    <a href="#l1"><span>01</span>What is a UAV</a>
+    <a href="#l2"><span>02</span>Unmanned systems</a>
+    <a href="#l3"><span>03</span>Categories</a>
+    <a href="#l4"><span>04</span>Classification</a>
+    <a href="#l5"><span>05</span>Types of UAV</a>
+    <a href="#l6"><span>06</span>Multirotors</a>
+    <a href="#l7"><span>07</span>Electricals</a>
+    <a href="#l8"><span>08</span>Payloads</a>
+    <a href="#l9"><span>09</span>Monitoring</a>
+    <a href="#l10"><span>10</span>Data collection</a>
+    <a href="#l11"><span>11</span>Network issues</a>
+    <a href="#l12"><span>12</span>Revision + quiz</a>
+    <a href="#l13"><span>◆</span>Key takeaways</a>
+  </nav>
+
+  <main>
+
+  <!-- ================= HERO ================= -->
+  <header class="hero">
+    <div class="eyebrow">Flight plan · Aerial robotics · Semester notes</div>
+    <h1>Read this unit<br>as a <em>route</em>.</h1>
+    <p class="hero-sub">Twelve waypoints, from the definition of an unmanned aircraft to the reasons drone networks are hard to keep connected. Every panel below is a working instrument — move a slider, rebuild an airframe, trip a failsafe, and watch the numbers change.</p>
+
+    <div class="chartbox">
+      <svg viewBox="0 0 940 372" role="img" aria-label="Sectional chart showing the twelve topics of this unit as route waypoints">
+        <defs>
+          <path id="rt" d="M60 312 L150 262 L235 297 L320 212 L400 247 L480 162 L560 202 L640 132 L710 177 L780 107 L840 152 L890 82" fill="none"/>
+          <pattern id="hatch" width="7" height="7" patternTransform="rotate(45)" patternUnits="userSpaceOnUse">
+            <line x1="0" y1="0" x2="0" y2="7" stroke="#B3157E" stroke-width="1" opacity=".28"/>
+          </pattern>
+        </defs>
+        <rect width="940" height="372" fill="#F6F7F0"/>
+        <g opacity=".5" stroke="#4C5548" stroke-width=".5">
+          <path d="M120 372 Q200 300 160 210 T230 60" fill="none" opacity=".5"/>
+          <path d="M400 372 Q460 290 420 200 T520 40" fill="none" opacity=".35"/>
+          <path d="M700 372 Q760 300 720 190 T820 30" fill="none" opacity=".35"/>
+        </g>
+        <circle cx="238" cy="118" r="66" fill="url(#hatch)" stroke="#B3157E" stroke-width="1.4" stroke-dasharray="7 5" opacity=".85"/>
+        <text x="238" y="52" text-anchor="middle" font-family="IBM Plex Mono,monospace" font-size="9" letter-spacing="1.6" fill="#B3157E">RESTRICTED · NO-FLY</text>
+        <path d="M520 372 L560 300 L640 318 L690 372 Z" fill="#1E5F8C" opacity=".1"/>
+        <text x="595" y="345" text-anchor="middle" font-family="IBM Plex Mono,monospace" font-size="8.5" letter-spacing="1.4" fill="#1E5F8C">CONTROLLED AIRSPACE</text>
+
+        <use href="#rt" stroke="#151B13" stroke-width="2" stroke-dasharray="9 6" opacity=".85" id="rtline"/>
+        <g id="wps"></g>
+
+        <g id="acft">
+          <path d="M0,-9 L6,7 L0,3 L-6,7 Z" fill="#B3157E"/>
+          <animateMotion dur="17s" repeatCount="indefinite" rotate="auto"><mpath href="#rt"/></animateMotion>
+        </g>
+
+        <g transform="translate(880,300)" stroke="#4C5548" fill="none" stroke-width="1">
+          <circle r="21"/><path d="M0,-27 L0,-18 M0,18 L0,27 M-27,0 L-18,0 M18,0 L27,0"/>
+          <path d="M0,-16 L4,4 L0,0 L-4,4 Z" fill="#151B13" stroke="none"/>
+          <text y="-31" text-anchor="middle" font-family="IBM Plex Mono,monospace" font-size="8.5" fill="#151B13">N</text>
+        </g>
+        <g transform="translate(40,352)" font-family="IBM Plex Mono,monospace" font-size="8" fill="#4C5548">
+          <line x1="0" y1="0" x2="80" y2="0" stroke="#4C5548" stroke-width="1.2"/>
+          <line x1="0" y1="-4" x2="0" y2="4" stroke="#4C5548"/><line x1="80" y1="-4" x2="80" y2="4" stroke="#4C5548"/>
+          <text x="86" y="3">1 LEG ≈ 1 EXAM QUESTION</text>
+        </g>
+      </svg>
+      <div class="chart-cap">
+        <span>◆ Waypoint = topic</span><span style="color:#B3157E">▬ Magenta = restricted / hazard</span>
+        <span style="color:#1E5F8C">▬ Blue = controlled airspace</span><span>Click any waypoint to jump</span>
+      </div>
+    </div>
+  </header>
+
+  <!-- ================= 01 ================= -->
+  <section class="leg" id="l1">
+    <div class="leg-head"><div class="leg-no">WP 01</div><div>
+      <div class="leg-kicker">Departure</div><h2>Introduction to UAVs &amp; Drones</h2></div></div>
+
+    <p class="lede">An <b>Unmanned Aerial Vehicle (UAV)</b> is a powered aircraft that carries no human pilot on board, flies under remote control or by its own onboard autonomy, can be expendable or recoverable, and can carry a payload. The pilot is not removed from the loop — only from the airframe.</p>
+
+    <div class="def"><b>UAV vs UAS vs RPAS vs drone.</b> The <em>vehicle</em> is only one component. The full system — vehicle, ground control station, data links, payload, launch/recovery equipment and human operators — is the <b>UAS (Unmanned Aircraft System)</b>. ICAO prefers <b>RPAS (Remotely Piloted Aircraft System)</b> for aircraft always under a licensed remote pilot. "Drone" is the popular, non-technical umbrella term.</p></div>
+
+    <figure class="fig">
+      <svg viewBox="0 0 920 350" font-family="IBM Plex Mono,monospace" font-size="10" fill="#151B13" role="img" aria-label="Diagram of a complete unmanned aircraft system">
+        <defs>
+          <marker id="f1a" markerWidth="10" markerHeight="10" refX="7" refY="3" orient="auto"><path d="M0,0 L7,3 L0,6 Z" fill="#B3157E"/></marker>
+          <marker id="f1b" markerWidth="10" markerHeight="10" refX="7" refY="3" orient="auto"><path d="M0,0 L7,3 L0,6 Z" fill="#1E5F8C"/></marker>
+          <pattern id="f1h" width="14" height="12" patternUnits="userSpaceOnUse"><line x1="14" y1="0" x2="0" y2="12" stroke="#151B13" stroke-width=".8" opacity=".4"/></pattern>
+        </defs>
+        <line x1="20" y1="302" x2="900" y2="302" stroke="#151B13" stroke-width="1.6"/>
+        <rect x="20" y="302" width="880" height="12" fill="url(#f1h)"/>
+
+        <g transform="translate(455,40)">
+          <rect x="-26" y="-5" width="15" height="10" fill="#1E5F8C" opacity=".35" stroke="#151B13"/>
+          <rect x="11" y="-5" width="15" height="10" fill="#1E5F8C" opacity=".35" stroke="#151B13"/>
+          <rect x="-9" y="-8" width="18" height="16" fill="#F6F7F0" stroke="#151B13" stroke-width="1.4"/>
+          <text y="-16" text-anchor="middle" letter-spacing="1.4">GNSS SATELLITES — POSITION &amp; TIME</text>
+        </g>
+        <g stroke="#151B13" stroke-dasharray="4 4" opacity=".55">
+          <line x1="455" y1="52" x2="655" y2="118"/><line x1="455" y1="52" x2="188" y2="212"/>
+        </g>
+
+        <g transform="translate(665,132)">
+          <line x1="-42" y1="-19" x2="42" y2="19" stroke="#151B13" stroke-width="5" opacity=".55" stroke-linecap="round"/>
+          <line x1="42" y1="-19" x2="-42" y2="19" stroke="#151B13" stroke-width="5" opacity=".55" stroke-linecap="round"/>
+          <ellipse cx="-42" cy="-19" rx="19" ry="3" fill="#B3157E" opacity=".75"/><ellipse cx="42" cy="-19" rx="19" ry="3" fill="#1E5F8C" opacity=".75"/>
+          <ellipse cx="-42" cy="19" rx="19" ry="3" fill="#1E5F8C" opacity=".75"/><ellipse cx="42" cy="19" rx="19" ry="3" fill="#B3157E" opacity=".75"/>
+          <rect x="-21" y="-12" width="42" height="24" rx="3" fill="#F6F7F0" stroke="#151B13" stroke-width="1.6"/>
+          <circle cx="0" cy="27" r="9" fill="#F6F7F0" stroke="#151B13" stroke-width="1.4"/><circle cx="0" cy="27" r="4" fill="#151B13"/>
+          <text y="-32" text-anchor="middle" letter-spacing="1.2" font-weight="600">1 · AIR VEHICLE</text>
+        </g>
+        <line x1="676" y1="162" x2="742" y2="196" stroke="#151B13" stroke-width=".9"/>
+        <text x="746" y="199" letter-spacing="1">4 · PAYLOAD — camera, sensor, cargo</text>
+
+        <g transform="translate(120,240)">
+          <rect x="-46" y="-6" width="92" height="48" fill="#FFFFFF" stroke="#151B13" stroke-width="1.6"/>
+          <path d="M-40 3 L-10 15 L10 6 L40 20" fill="none" stroke="#1E5F8C" stroke-width="1.4"/>
+          <circle cx="-10" cy="15" r="2.4" fill="#B3157E"/><circle cx="10" cy="6" r="2.4" fill="#B3157E"/><circle cx="40" cy="20" r="2.4" fill="#B3157E"/>
+          <path d="M-52 42 L52 42 L62 56 L-62 56 Z" fill="#F6F7F0" stroke="#151B13" stroke-width="1.6"/>
+          <text y="-16" text-anchor="middle" letter-spacing="1.2" font-weight="600">2 · GROUND CONTROL STATION</text>
+        </g>
+        <g stroke="#151B13" stroke-width="1.6"><line x1="188" y1="296" x2="188" y2="212"/></g>
+        <path d="M182 212 L188 200 L194 212 Z" fill="#151B13"/>
+        <g transform="translate(238,258)" stroke="#151B13" stroke-width="1.6" fill="none">
+          <circle cx="0" cy="0" r="7"/><line x1="0" y1="7" x2="0" y2="26"/><line x1="-11" y1="16" x2="11" y2="14"/>
+          <line x1="0" y1="26" x2="-9" y2="44"/><line x1="0" y1="26" x2="9" y2="44"/>
+        </g>
+        <text x="256" y="288" letter-spacing="1">6 · REMOTE PILOT</text>
+
+        <path d="M196 202 Q400 112 618 116" fill="none" stroke="#B3157E" stroke-width="1.8" stroke-dasharray="7 5" marker-end="url(#f1a)"/>
+        <text x="400" y="128" text-anchor="middle" fill="#B3157E" letter-spacing="1">3 · C2 UPLINK — commands, mission upload</text>
+        <path d="M622 152 Q410 226 200 232" fill="none" stroke="#1E5F8C" stroke-width="1.8" stroke-dasharray="7 5" marker-end="url(#f1b)"/>
+        <text x="410" y="246" text-anchor="middle" fill="#1E5F8C" letter-spacing="1">3 · DOWNLINK — telemetry + live video</text>
+
+        <g transform="translate(806,302)">
+          <ellipse cx="0" cy="-4" rx="52" ry="11" fill="none" stroke="#151B13" stroke-width="1.4" stroke-dasharray="6 4"/>
+          <text y="-1" text-anchor="middle" font-size="13" font-weight="700">H</text>
+          <text y="-24" text-anchor="middle" letter-spacing="1">5 · LAUNCH &amp; RECOVERY</text>
+        </g>
+      </svg>
+      <figcaption><b>FIG 1.1</b> The unmanned aircraft system. The drone itself is only box 1 of six; the exam answer must include all of them.</figcaption>
+    </figure>
+
+    <div class="panel">
+      <div class="panel-t">The five subsystems of a UAS <small>click a block</small></div>
+      <div class="ctl" id="uasCtl"></div>
+      <div class="detail" id="uasDet"></div>
+    </div>
+
+    <div class="two">
+      <div class="panel">
+        <div class="panel-t">Why unmanned</div>
+        <ul class="kl">
+          <li><b>Dull</b> — long endurance surveys, pipeline and border patrol where a human pilot fatigues.</li>
+          <li><b>Dirty</b> — radiation, chemical plumes, volcanic ash, post-disaster smoke.</li>
+          <li><b>Dangerous</b> — combat, wildfire, structural inspection at height, confined spaces.</li>
+          <li><b>Cheap &amp; small</b> — no cockpit, life support, or crew safety margin, so the airframe shrinks and cost drops.</li>
+          <li><b>Precise</b> — repeatable, GPS-locked flight lines that a human cannot fly by hand.</li>
+        </ul>
+      </div>
+      <div class="panel">
+        <div class="panel-t">Brief timeline</div>
+        <ul class="kl">
+          <li><b>1849</b> Austrian balloon bombs over Venice — the first unmanned aerial attack.</li>
+          <li><b>1917–18</b> Kettering Bug and the Ruston Proctor Aerial Target: first powered UAVs.</li>
+          <li><b>1930s–60s</b> Radio-controlled target drones (DH.82 Queen Bee — origin of "drone"); Ryan Firebee reconnaissance.</li>
+          <li><b>1980s–90s</b> IAI Scout / Pioneer prove tactical ISR; Predator enters service 1995.</li>
+          <li><b>2010s</b> Cheap MEMS IMUs, brushless motors, LiPo cells and open-source autopilots create the civil multirotor market.</li>
+          <li><b>2020s</b> BVLOS corridors, delivery trials, drone swarms, Remote ID, UTM.</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="note"><b>Exam line</b> — Remember the ordering: UAV ⊂ UAS. A question that says "the UAV consists of ground control station and data link" is wrong; that is the UAS.</div>
+  </section>
+
+  <!-- ================= 02 ================= -->
+  <section class="leg" id="l2">
+    <div class="leg-head"><div class="leg-no">WP 02</div><div>
+      <div class="leg-kicker">Domain map</div><h2>Unmanned Systems &amp; Vehicles</h2></div></div>
+
+    <p class="lede">UAVs are one branch of a wider family of unmanned systems. Same idea in every domain: sensing, computing and actuation on board, human intent delivered over a link.</p>
+
+    <div class="panel">
+      <div class="panel-t">Unmanned vehicle domains <small>tabs</small></div>
+      <div class="ctl" id="domCtl"></div>
+      <div class="detail" id="domDet"></div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-t">Levels of autonomy <small>drag the slider</small></div>
+      <div class="slider">
+        <label for="autoS">Autonomy level — how much decision-making sits on the aircraft</label>
+        <input type="range" id="autoS" min="0" max="5" step="1" value="1"><output id="autoOut">L1</output>
+      </div>
+      <div class="detail" id="autoDet"></div>
+      <p class="mono" style="color:var(--ink2);margin-top:10px">Formal scales: NIST <b>ALFUS</b> (mission complexity × environment difficulty × human independence) and the USAF <b>ACL 1–10</b> ladder.</p>
+    </div>
+
+    <div class="panel">
+      <div class="panel-t">Human role terminology</div>
+      <table class="t">
+        <tr><th>Term</th><th>Meaning</th><th>Where you see it</th></tr>
+        <tr><td class="hl">Remote pilot</td><td>Person legally responsible for the flight, manipulating controls or supervising autonomy</td><td>DGCA Remote Pilot Certificate (RPC)</td></tr>
+        <tr><td class="hl">Payload operator</td><td>Second crew member running the camera/sensor independently of flight</td><td>Military ISR, survey teams</td></tr>
+        <tr><td class="hl">VLOS</td><td>Visual line of sight — pilot sees the aircraft unaided</td><td>Default permission everywhere</td></tr>
+        <tr><td class="hl">EVLOS / BVLOS</td><td>Extended (observers) / beyond visual line of sight</td><td>Delivery, long linear surveys — needs special approval</td></tr>
+        <tr><td class="hl">Human-in / on / out of the loop</td><td>Commands each action / supervises &amp; can veto / no intervention</td><td>Autonomy discussions, ethics of armed UAVs</td></tr>
+      </table>
+    </div>
+  </section>
+
+  <!-- ================= 03 ================= -->
+  <section class="leg" id="l3">
+    <div class="leg-head"><div class="leg-no">WP 03</div><div>
+      <div class="leg-kicker">Regulatory buckets</div><h2>UAV Categories</h2></div></div>
+
+    <p class="lede">"Category" usually means the legal weight bucket an aircraft falls into, because take-off mass drives kinetic energy, and kinetic energy drives the rules. Move the mass slider and watch both the Indian and NATO buckets change.</p>
+
+    <div class="panel">
+      <div class="panel-t">Mass classifier <small>live</small></div>
+      <div class="slider">
+        <label for="mtowS">All-up mass at take-off (MTOW), including payload &amp; battery</label>
+        <input type="range" id="mtowS" min="0" max="100" step="1" value="28"><output id="mtowOut">2.0 kg</output>
+      </div>
+      <div class="reads">
+        <div class="read" id="rDgca"><i>India · Drone Rules 2021</i><b>—</b></div>
+        <div class="read" id="rNato"><i>NATO class</i><b>—</b></div>
+        <div class="read" id="rTyp"><i>Typical example</i><b>—</b></div>
+        <div class="read" id="rReg"><i>Compliance load</i><b>—</b></div>
+      </div>
+      <div class="detail" id="mtowDet"></div>
+    </div>
+
+    <figure class="fig">
+      <svg viewBox="0 0 920 210" font-family="IBM Plex Mono,monospace" font-size="10" fill="#151B13" role="img" aria-label="Weight categories of drones on a scale">
+        <text x="10" y="16" letter-spacing="1.6" fill="#4C5548">INDIA · DRONE RULES 2021</text>
+        <g>
+          <rect x="10" y="26" width="120" height="34" fill="#1E5F8C" opacity=".14" stroke="#151B13"/>
+          <rect x="130" y="26" width="160" height="34" fill="#1E5F8C" opacity=".26" stroke="#151B13"/>
+          <rect x="290" y="26" width="230" height="34" fill="#D98200" opacity=".26" stroke="#151B13"/>
+          <rect x="520" y="26" width="200" height="34" fill="#D98200" opacity=".42" stroke="#151B13"/>
+          <rect x="720" y="26" width="190" height="34" fill="#B3157E" opacity=".30" stroke="#151B13"/>
+        </g>
+        <g text-anchor="middle" font-weight="600" font-size="11">
+          <text x="70" y="48">NANO</text><text x="210" y="48">MICRO</text><text x="405" y="48">SMALL</text>
+          <text x="620" y="48">MEDIUM</text><text x="815" y="48">LARGE</text>
+        </g>
+        <line x1="10" y1="76" x2="910" y2="76" stroke="#151B13" stroke-width="1.6"/>
+        <g stroke="#151B13" stroke-width="1.2">
+          <line x1="130" y1="70" x2="130" y2="86"/><line x1="290" y1="70" x2="290" y2="86"/>
+          <line x1="520" y1="70" x2="520" y2="86"/><line x1="720" y1="70" x2="720" y2="86"/>
+        </g>
+        <g text-anchor="middle" fill="#B3157E" font-weight="600">
+          <text x="130" y="99">250 g</text><text x="290" y="99">2 kg</text><text x="520" y="99">25 kg</text><text x="720" y="99">150 kg</text>
+        </g>
+        <g fill="#4C5548"><text x="10" y="99">0</text><text x="898" y="99" text-anchor="end">&gt; 600 kg</text></g>
+
+        <g stroke="#151B13" fill="none" stroke-width="1.3">
+          <g transform="translate(70,128)"><line x1="-7" y1="-4" x2="7" y2="4"/><line x1="7" y1="-4" x2="-7" y2="4"/><rect x="-3" y="-2.5" width="6" height="5" fill="#F6F7F0"/></g>
+          <g transform="translate(210,128)"><line x1="-13" y1="-7" x2="13" y2="7"/><line x1="13" y1="-7" x2="-13" y2="7"/><rect x="-5" y="-4" width="10" height="8" fill="#F6F7F0"/></g>
+          <g transform="translate(405,130)"><line x1="-22" y1="-11" x2="22" y2="11"/><line x1="22" y1="-11" x2="-22" y2="11"/><rect x="-9" y="-6" width="18" height="12" fill="#F6F7F0"/><ellipse cx="-22" cy="-11" rx="9" ry="2" fill="#151B13"/><ellipse cx="22" cy="11" rx="9" ry="2" fill="#151B13"/></g>
+          <g transform="translate(620,132)"><line x1="-34" y1="-15" x2="34" y2="15"/><line x1="34" y1="-15" x2="-34" y2="15"/><rect x="-14" y="-9" width="28" height="18" fill="#F6F7F0"/><ellipse cx="-34" cy="-15" rx="13" ry="2.6" fill="#151B13"/><ellipse cx="34" cy="15" rx="13" ry="2.6" fill="#151B13"/></g>
+          <g transform="translate(815,132)"><path d="M-52 0 L-6 -6 L46 -3 L58 0 L46 3 L-6 6 Z" fill="#F6F7F0"/><path d="M-6 -6 L-24 -30 L-10 -30 L10 -6"/><path d="M-6 6 L-24 30 L-10 30 L10 6"/><path d="M-46 0 L-56 -14 L-48 -14"/></g>
+        </g>
+        <g text-anchor="middle" font-size="9" fill="#4C5548">
+          <text x="70" y="158">toy / FPV</text><text x="210" y="158">Mavic class</text><text x="405" y="160">survey quad</text>
+          <text x="620" y="164">heavy-lift octo</text><text x="815" y="164">Predator class</text>
+        </g>
+        <text x="10" y="184" letter-spacing="1.6" fill="#4C5548">NATO MILITARY CLASSES</text>
+        <g>
+          <rect x="180" y="190" width="340" height="16" fill="#1E5F8C" opacity=".2" stroke="#151B13"/>
+          <rect x="520" y="190" width="200" height="16" fill="#D98200" opacity=".3" stroke="#151B13"/>
+          <rect x="720" y="190" width="190" height="16" fill="#B3157E" opacity=".3" stroke="#151B13"/>
+        </g>
+        <g text-anchor="middle" font-size="9.5" font-weight="600">
+          <text x="350" y="202">CLASS I — micro / mini / small (&lt; 150 kg)</text>
+          <text x="620" y="202">CLASS II (150–600 kg)</text><text x="815" y="202">CLASS III (&gt; 600 kg)</text>
+        </g>
+      </svg>
+      <figcaption><b>FIG 1.2</b> Weight categories under India's Drone Rules 2021 (top) against the NATO military classes (bottom). The boundaries exist because impact energy scales with mass.</figcaption>
+    </figure>
+
+    <div class="two">
+      <div class="panel">
+        <div class="panel-t">India — Drone Rules, 2021</div>
+        <table class="t">
+          <tr><th>Category</th><th>All-up weight</th></tr>
+          <tr><td class="hl">Nano</td><td>≤ 250 g</td></tr>
+          <tr><td class="hl">Micro</td><td>&gt; 250 g and ≤ 2 kg</td></tr>
+          <tr><td class="hl">Small</td><td>&gt; 2 kg and ≤ 25 kg</td></tr>
+          <tr><td class="hl">Medium</td><td>&gt; 25 kg and ≤ 150 kg</td></tr>
+          <tr><td class="hl">Large</td><td>&gt; 150 kg</td></tr>
+        </table>
+        <p class="mono" style="margin-top:10px;color:var(--ink2)">Also required: type certificate, unique identification number (UIN) on the Digital Sky portal, remote pilot certificate (not for nano/non-commercial micro), and airspace zones — green / yellow / red.</p>
+      </div>
+      <div class="panel">
+        <div class="panel-t">NATO / military classes</div>
+        <table class="t">
+          <tr><th>Class</th><th>Mass</th><th>Employment</th></tr>
+          <tr><td class="hl">I — Micro</td><td>&lt; 2 kg</td><td>Section, hand-launched, &lt;200 ft AGL</td></tr>
+          <tr><td class="hl">I — Mini</td><td>2–20 kg</td><td>Sub-unit, &lt;3 000 ft AGL</td></tr>
+          <tr><td class="hl">I — Small</td><td>20–150 kg</td><td>Unit, &lt;5 000 ft AGL</td></tr>
+          <tr><td class="hl">II — Tactical</td><td>150–600 kg</td><td>Formation, &lt;10 000 ft</td></tr>
+          <tr><td class="hl">III — MALE/HALE/Strike</td><td>&gt; 600 kg</td><td>Theatre / strategic, up to 65 000 ft</td></tr>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= 04 ================= -->
+  <section class="leg" id="l4">
+    <div class="leg-head"><div class="leg-no">WP 04</div><div>
+      <div class="leg-kicker">Five axes</div><h2>Classification of UAVs</h2></div></div>
+
+    <p class="lede">Weight is only one axis. The same aircraft can be classified by range, altitude, endurance, wing type, autonomy or role — pick the axis the question is asking about.</p>
+
+    <div class="panel">
+      <div class="panel-t">Classification axes <small>select one</small></div>
+      <div class="ctl" id="axCtl"></div>
+      <div id="axBody"></div>
+    </div>
+
+    <figure class="fig">
+      <svg viewBox="0 0 920 420" font-family="IBM Plex Mono,monospace" font-size="10" fill="#151B13" role="img" aria-label="Altitude bands occupied by different drone classes">
+        <defs><linearGradient id="f3s" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stop-color="#1E5F8C" stop-opacity=".55"/><stop offset="55%" stop-color="#1E5F8C" stop-opacity=".16"/>
+          <stop offset="100%" stop-color="#E4E8D8" stop-opacity=".2"/></linearGradient></defs>
+        <rect x="120" y="16" width="790" height="356" fill="url(#f3s)"/>
+        <line x1="120" y1="372" x2="910" y2="372" stroke="#151B13" stroke-width="1.8"/>
+        <line x1="120" y1="16" x2="120" y2="372" stroke="#151B13" stroke-width="1.4"/>
+        <g stroke="#151B13" stroke-width=".7" opacity=".35" stroke-dasharray="3 4">
+          <line x1="120" y1="342" x2="910" y2="342"/><line x1="120" y1="300" x2="910" y2="300"/>
+          <line x1="120" y1="240" x2="910" y2="240"/><line x1="120" y1="160" x2="910" y2="160"/>
+          <line x1="120" y1="80" x2="910" y2="80"/><line x1="120" y1="46" x2="910" y2="46"/>
+        </g>
+        <g text-anchor="end" fill="#4C5548">
+          <text x="112" y="376">0 ft</text><text x="112" y="346">400 ft — legal ceiling for most civil flights</text>
+          <text x="112" y="304">3 000 ft</text><text x="112" y="244">10 000 ft</text>
+          <text x="112" y="164">30 000 ft</text><text x="112" y="84">60 000 ft</text><text x="112" y="50">70 000 ft</text>
+        </g>
+        <g stroke="#151B13" fill="none" stroke-width="1.3">
+          <g transform="translate(200,352)"><line x1="-11" y1="-5" x2="11" y2="5"/><line x1="11" y1="-5" x2="-11" y2="5"/><rect x="-4" y="-3" width="8" height="6" fill="#F6F7F0"/></g>
+          <g transform="translate(360,290)"><path d="M-20 0 L20 0" /><path d="M0 -8 L0 8"/><path d="M-20 0 L-14 -4 L-14 4 Z" fill="#151B13"/></g>
+          <g transform="translate(520,222)"><path d="M-26 0 L26 0"/><path d="M-4 -12 L-4 12"/><path d="M22 -6 L26 0 L22 6"/></g>
+          <g transform="translate(680,140)"><path d="M-30 0 L30 0"/><path d="M-2 -16 L-2 16"/><path d="M24 -7 L30 0 L24 7"/></g>
+          <g transform="translate(840,64)"><path d="M-44 0 L44 0" stroke-width="2"/><path d="M-30 -3 L30 -3" stroke-dasharray="4 3"/><path d="M-8 0 L-8 10 M8 0 L8 10"/></g>
+        </g>
+        <g text-anchor="middle" font-weight="600" font-size="10.5">
+          <text x="200" y="332">LASE</text><text x="360" y="272">LALE</text><text x="520" y="200">MALE</text>
+          <text x="680" y="118">HALE</text><text x="840" y="44">HAPS</text>
+        </g>
+        <g text-anchor="middle" font-size="9" fill="#4C5548">
+          <text x="200" y="368">hobby, inspection</text><text x="360" y="284">border watch, 24 h+</text>
+          <text x="520" y="212">Heron, Predator</text><text x="680" y="130">Global Hawk</text><text x="840" y="56">solar, weeks aloft</text>
+        </g>
+        <g stroke="#B3157E" stroke-dasharray="6 4" stroke-width="1.2">
+          <line x1="120" y1="150" x2="910" y2="150"/><line x1="120" y1="168" x2="910" y2="168"/>
+        </g>
+        <text x="906" y="146" text-anchor="end" fill="#B3157E">airliner cruise ≈ 35 000 ft</text>
+        <text x="906" y="182" text-anchor="end" fill="#B3157E">Everest summit ≈ 29 000 ft</text>
+      </svg>
+      <figcaption><b>FIG 1.3</b> Altitude bands. LASE = low altitude short endurance, LALE = low altitude long endurance, MALE = medium altitude long endurance, HALE = high altitude long endurance, HAPS = high altitude pseudo-satellite.</figcaption>
+    </figure>
+
+    <div class="panel">
+      <div class="panel-t">The acronyms you must be able to expand</div>
+      <div class="three">
+        <ul class="kl">
+          <li><b>LASE</b> Low Altitude, Short Endurance</li>
+          <li><b>LALE</b> Low Altitude, Long Endurance</li>
+          <li><b>MALE</b> Medium Altitude, Long Endurance</li>
+        </ul>
+        <ul class="kl">
+          <li><b>HALE</b> High Altitude, Long Endurance</li>
+          <li><b>UCAV</b> Unmanned Combat Aerial Vehicle</li>
+          <li><b>VTOL</b> Vertical Take-Off and Landing</li>
+        </ul>
+        <ul class="kl">
+          <li><b>NRUAV</b> Naval Rotary UAV</li>
+          <li><b>HAPS</b> High Altitude Pseudo-Satellite</li>
+          <li><b>sUAS</b> small Unmanned Aircraft System</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= 05 ================= -->
+  <section class="leg" id="l5">
+    <div class="leg-head"><div class="leg-no">WP 05</div><div>
+      <div class="leg-kicker">Airframe families</div><h2>Types of Unmanned Aerial Vehicles</h2></div></div>
+
+    <p class="lede">How the aircraft makes lift decides everything downstream: endurance, launch method, payload, and whether it can hover. Compare any two families side by side.</p>
+
+    <div class="panel">
+      <div class="panel-t">Airframe comparator <small>pick two</small></div>
+      <div class="ctl" id="typeCtl"></div>
+      <div class="two" id="typeCmp"></div>
+    </div>
+
+    <figure class="fig">
+      <svg viewBox="0 0 920 230" font-family="IBM Plex Mono,monospace" font-size="10" fill="#151B13" role="img" aria-label="Silhouettes of the six drone airframe families">
+        <g stroke="#151B13" stroke-width="1.5" fill="#F6F7F0">
+          <g transform="translate(88,80)">
+            <path d="M0 -42 L9 -18 L60 -2 L60 8 L9 2 L7 26 L20 34 L20 40 L0 36 L-20 40 L-20 34 L-7 26 L-9 2 L-60 8 L-60 -2 L-9 -18 Z"/>
+            <circle cx="0" cy="-44" r="4" fill="#B3157E" stroke="none"/>
+          </g>
+          <g transform="translate(258,80)">
+            <ellipse cx="0" cy="10" rx="34" ry="15"/><path d="M28 6 L64 0 L64 8 L30 14 Z"/>
+            <line x1="-46" y1="-22" x2="46" y2="-22" stroke-width="3"/><line x1="0" y1="-22" x2="0" y2="-4"/>
+            <line x1="60" y1="-14" x2="72" y2="-14" stroke-width="2.5"/>
+            <path d="M-18 25 L-18 36 M14 25 L14 36 M-26 36 L22 36" stroke-width="2"/>
+          </g>
+          <g transform="translate(432,80)">
+            <line x1="-38" y1="-30" x2="38" y2="30" stroke-width="4.5"/><line x1="38" y1="-30" x2="-38" y2="30" stroke-width="4.5"/>
+            <ellipse cx="-38" cy="-30" rx="17" ry="3" fill="#B3157E" stroke="none"/><ellipse cx="38" cy="-30" rx="17" ry="3" fill="#1E5F8C" stroke="none"/>
+            <ellipse cx="-38" cy="30" rx="17" ry="3" fill="#1E5F8C" stroke="none"/><ellipse cx="38" cy="30" rx="17" ry="3" fill="#B3157E" stroke="none"/>
+            <rect x="-19" y="-12" width="38" height="24" rx="4"/>
+          </g>
+          <g transform="translate(608,80)">
+            <path d="M-64 -6 L64 -6 L64 6 L-64 6 Z"/><path d="M-8 -34 L8 -34 L10 30 L-10 30 Z"/>
+            <path d="M-26 30 L26 30 L26 40 L-26 40 Z"/>
+            <ellipse cx="-46" cy="-22" rx="15" ry="3" fill="#B3157E" stroke="none"/><ellipse cx="46" cy="-22" rx="15" ry="3" fill="#1E5F8C" stroke="none"/>
+            <ellipse cx="-46" cy="22" rx="15" ry="3" fill="#1E5F8C" stroke="none"/><ellipse cx="46" cy="22" rx="15" ry="3" fill="#B3157E" stroke="none"/>
+            <circle cx="0" cy="-38" r="4" fill="#B3157E" stroke="none"/>
+          </g>
+          <g transform="translate(752,80)">
+            <path d="M0 -14 C-18 -46 -54 -44 -62 -20 C-52 -26 -30 -20 -6 2 Z"/>
+            <path d="M0 -14 C18 -46 54 -44 62 -20 C52 -26 30 -20 6 2 Z"/>
+            <path d="M-6 2 L0 34 L6 2 Z"/><circle cx="0" cy="-16" r="6"/>
+          </g>
+          <g transform="translate(868,80)">
+            <ellipse cx="-4" cy="0" rx="44" ry="18"/><path d="M36 0 L52 -14 L48 0 L52 14 Z"/>
+            <rect x="-14" y="16" width="22" height="8" rx="2"/>
+          </g>
+        </g>
+        <g text-anchor="middle" font-weight="600" font-size="11">
+          <text x="88" y="150">FIXED-WING</text><text x="258" y="150">SINGLE-ROTOR</text><text x="432" y="150">MULTIROTOR</text>
+          <text x="608" y="150">HYBRID VTOL</text><text x="752" y="150">FLAPPING-WING</text><text x="868" y="150">AIRSHIP</text>
+        </g>
+        <g text-anchor="middle" font-size="9" fill="#4C5548">
+          <text x="88" y="168">wing makes lift</text><text x="88" y="181">1–20 h · no hover</text>
+          <text x="258" y="168">one big rotor</text><text x="258" y="181">heavy lift · hovers</text>
+          <text x="432" y="168">differential thrust</text><text x="432" y="181">15–45 min · hovers</text>
+          <text x="608" y="168">rotors + wing</text><text x="608" y="181">1–6 h · hovers</text>
+          <text x="752" y="168">oscillating wings</text><text x="752" y="181">grams of payload</text>
+          <text x="868" y="168">buoyancy</text><text x="868" y="181">hours to weeks</text>
+        </g>
+        <g font-size="9" fill="#4C5548"><text x="10" y="212">Endurance rises left to right within the winged types; hovering ability is the dividing line — only the last four can hold a fixed point in the air.</text></g>
+      </svg>
+      <figcaption><b>FIG 1.4</b> The six airframe families in plan or side view. Propeller colour marks spin direction: magenta clockwise, blue counter-clockwise.</figcaption>
+    </figure>
+
+    <div class="note"><b>Rule of thumb</b> — Fixed-wing beats rotary on endurance and area covered per battery by roughly 3–5×; rotary beats fixed-wing on precision, hovering, take-off footprint and safety around structures. Hybrid VTOL buys fixed-wing cruise with rotary launch, paying for it in mass, complexity and cost.</div>
+  </section>
+
+  <!-- ================= 06 ================= -->
+  <section class="leg" id="l6">
+    <div class="leg-head"><div class="leg-no">WP 06</div><div>
+      <div class="leg-kicker">Signature instrument</div><h2>Multirotor UAV Systems</h2></div></div>
+
+    <p class="lede">A multirotor has no swashplate and no control surfaces. Every axis is flown by <b>differential thrust</b> alone — the flight controller changes individual motor speeds hundreds of times per second. Build a frame below and command it.</p>
+
+    <div class="panel">
+      <div class="panel-t">Frame builder &amp; motor mixer <small>live</small></div>
+      <div class="ctl" id="frmCtl"></div>
+      <div class="ctl" id="cmdCtl"></div>
+      <div class="stage">
+        <div class="stage-svg"><svg id="rotorSvg" viewBox="0 0 420 340" role="img" aria-label="Top view of the selected multirotor configuration with motor numbering and spin directions"></svg></div>
+        <div>
+          <div class="reads" style="grid-template-columns:1fr 1fr">
+            <div class="read"><i>Motors</i><b id="mMot">4</b></div>
+            <div class="read"><i>Yaw authority</i><b id="mYaw">—</b></div>
+            <div class="read"><i>Redundancy</i><b id="mRed">—</b></div>
+            <div class="read"><i>Efficiency</i><b id="mEff">—</b></div>
+          </div>
+          <div class="detail" id="frmDet"></div>
+        </div>
+      </div>
+    </div>
+
+    <figure class="fig">
+      <svg viewBox="0 0 920 250" font-family="IBM Plex Mono,monospace" font-size="10" fill="#151B13" role="img" aria-label="How propeller torque is cancelled and how yaw is commanded">
+        <defs><marker id="f5a" markerWidth="10" markerHeight="10" refX="6" refY="3" orient="auto"><path d="M0,0 L7,3 L0,6 Z" fill="#B3157E"/></marker></defs>
+        <g stroke="#151B13" stroke-width="1.4" fill="none">
+          <g transform="translate(150,105)">
+            <line x1="-52" y1="-40" x2="52" y2="40" stroke-width="4" opacity=".55"/><line x1="52" y1="-40" x2="-52" y2="40" stroke-width="4" opacity=".55"/>
+            <rect x="-20" y="-13" width="40" height="26" rx="4" fill="#F6F7F0"/>
+            <ellipse cx="-52" cy="-40" rx="18" ry="3.4" fill="#B3157E" stroke="none"/><ellipse cx="52" cy="-40" rx="18" ry="3.4" fill="#B3157E" stroke="none"/>
+            <ellipse cx="-52" cy="40" rx="18" ry="3.4" fill="#B3157E" stroke="none"/><ellipse cx="52" cy="40" rx="18" ry="3.4" fill="#B3157E" stroke="none"/>
+            <path d="M-72 -8 A 74 74 0 0 1 -8 -74" stroke="#B3157E" stroke-width="2" marker-end="url(#f5a)"/>
+            <path d="M72 8 A 74 74 0 0 1 8 74" stroke="#B3157E" stroke-width="2" marker-end="url(#f5a)"/>
+          </g>
+          <g transform="translate(460,105)">
+            <line x1="-52" y1="-40" x2="52" y2="40" stroke-width="4" opacity=".55"/><line x1="52" y1="-40" x2="-52" y2="40" stroke-width="4" opacity=".55"/>
+            <rect x="-20" y="-13" width="40" height="26" rx="4" fill="#F6F7F0"/>
+            <ellipse cx="-52" cy="-40" rx="18" ry="3.4" fill="#B3157E" stroke="none"/><ellipse cx="52" cy="40" rx="18" ry="3.4" fill="#B3157E" stroke="none"/>
+            <ellipse cx="52" cy="-40" rx="18" ry="3.4" fill="#1E5F8C" stroke="none"/><ellipse cx="-52" cy="40" rx="18" ry="3.4" fill="#1E5F8C" stroke="none"/>
+            <text x="-52" y="-52" text-anchor="middle" fill="#B3157E" stroke="none">CW</text><text x="52" y="-52" text-anchor="middle" fill="#1E5F8C" stroke="none">CCW</text>
+            <text x="-52" y="62" text-anchor="middle" fill="#1E5F8C" stroke="none">CCW</text><text x="52" y="62" text-anchor="middle" fill="#B3157E" stroke="none">CW</text>
+            <circle cx="0" cy="0" r="30" stroke="#1E5F8C" stroke-dasharray="4 4"/>
+            <text x="0" y="4" text-anchor="middle" font-size="9" fill="#1E5F8C" stroke="none">Στ = 0</text>
+          </g>
+          <g transform="translate(770,105)">
+            <line x1="-52" y1="-40" x2="52" y2="40" stroke-width="4" opacity=".55"/><line x1="52" y1="-40" x2="-52" y2="40" stroke-width="4" opacity=".55"/>
+            <rect x="-20" y="-13" width="40" height="26" rx="4" fill="#F6F7F0"/>
+            <ellipse cx="-52" cy="-40" rx="12" ry="2.6" fill="#B3157E" stroke="none" opacity=".5"/><ellipse cx="52" cy="40" rx="12" ry="2.6" fill="#B3157E" stroke="none" opacity=".5"/>
+            <ellipse cx="52" cy="-40" rx="23" ry="4.4" fill="#1E5F8C" stroke="none"/><ellipse cx="-52" cy="40" rx="23" ry="4.4" fill="#1E5F8C" stroke="none"/>
+            <text x="-52" y="-52" text-anchor="middle" font-size="9" stroke="none" fill="#4C5548">slower</text><text x="52" y="-52" text-anchor="middle" font-size="9" stroke="none" fill="#1E5F8C">faster</text>
+            <text x="-52" y="62" text-anchor="middle" font-size="9" stroke="none" fill="#1E5F8C">faster</text><text x="52" y="62" text-anchor="middle" font-size="9" stroke="none" fill="#4C5548">slower</text>
+            <path d="M-40 -66 A 78 78 0 0 1 40 -66" stroke="#B3157E" stroke-width="2.4" marker-end="url(#f5a)"/>
+          </g>
+        </g>
+        <g text-anchor="middle" font-weight="600" font-size="11">
+          <text x="150" y="200">ALL PROPS THE SAME WAY</text><text x="460" y="200">ALTERNATING CW / CCW</text><text x="770" y="200">DELIBERATE IMBALANCE</text>
+        </g>
+        <g text-anchor="middle" font-size="9.5" fill="#4C5548">
+          <text x="150" y="218">Reaction torque adds up and the</text><text x="150" y="231">whole airframe spins the other way.</text>
+          <text x="460" y="218">Two clockwise, two counter-clockwise:</text><text x="460" y="231">the torques cancel and heading holds.</text>
+          <text x="770" y="218">Speed up the CCW pair, slow the CW pair:</text><text x="770" y="231">total thrust is unchanged, so it yaws, not climbs.</text>
+        </g>
+      </svg>
+      <figcaption><b>FIG 1.5</b> Propeller torque. Left: uncancelled reaction torque spins the airframe. Middle: alternating spin directions cancel it. Right: unbalancing the cancellation on purpose is how yaw is commanded.</figcaption>
+    </figure>
+
+    <div class="two">
+      <div class="panel">
+        <div class="panel-t">How each axis is produced</div>
+        <ul class="kl">
+          <li><b>Throttle</b> All motors up equally → climb. Total thrust vs weight.</li>
+          <li><b>Roll</b> One lateral side speeds up, the other slows → bank, then translate sideways.</li>
+          <li><b>Pitch</b> Front pair vs rear pair differential → nose down, aircraft accelerates forward.</li>
+          <li><b>Yaw</b> Speed up all CCW props and slow all CW props (or vice-versa). Net aerodynamic <em>torque</em> imbalance turns the airframe — thrust stays constant, so altitude holds.</li>
+        </ul>
+        <p class="mono" style="color:var(--ink2)">Mixer form: <b>Mᵢ = T − roll·xᵢ − pitch·yᵢ + yaw·σᵢ</b>, where (xᵢ,yᵢ) is the motor position and σᵢ = +1 for CCW, −1 for CW.</p>
+      </div>
+      <div class="panel">
+        <div class="panel-t">Why props alternate direction</div>
+        <p>Each spinning propeller drags air and reacts against the airframe with an equal and opposite <b>torque</b>. If all four props spun the same way, the body would spin continuously the other way. Half CW and half CCW cancels net torque in hover; deliberately unbalancing that cancellation is exactly how yaw is commanded.</p>
+        <p class="mono" style="color:var(--ink2)">Also note: a tricopter cannot cancel torque with 3 motors, so it adds a <b>servo that tilts the tail motor</b> to vector thrust for yaw.</p>
+        <div class="stat-row" style="margin-top:8px">
+          <span class="badge">Frame class = motor-to-motor diagonal, mm</span>
+          <span class="badge">5-inch = 210–250 mm</span>
+          <span class="badge">Prop = diameter × pitch</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-t">Multirotor strengths &amp; limits</div>
+      <div class="two">
+        <ul class="kl">
+          <li><b>+ VTOL</b> no runway, launches from a footpath.</li>
+          <li><b>+ Hover</b> station-keeping over a single asset for inspection.</li>
+          <li><b>+ Mechanically simple</b> no gearbox, swashplate or linkages; motors are the only moving parts.</li>
+          <li><b>+ Agile</b> high thrust-to-weight, instant attitude response.</li>
+        </ul>
+        <ul class="kl">
+          <li><b>− Endurance</b> all lift is bought with power; 15–40 min typical.</li>
+          <li><b>− Efficiency</b> no wing means no free lift in cruise.</li>
+          <li><b>− Payload fraction</b> usually 10–30 % of MTOW.</li>
+          <li><b>− Wind &amp; noise</b> small props are loud and gust-sensitive.</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= 07 ================= -->
+  <section class="leg" id="l7">
+    <div class="leg-head"><div class="leg-no">WP 07</div><div>
+      <div class="leg-kicker">Under the shell</div><h2>On-Board Electrical Components</h2></div></div>
+
+    <p class="lede">Three lanes of hardware: a <span style="color:var(--magenta)">power lane</span> that turns chemistry into thrust, a <span style="color:var(--blue)">control lane</span> that turns sensor data into motor commands, and a <span style="color:var(--amber)">payload &amp; comms lane</span> that turns the flight into data.</p>
+
+    <div class="panel">
+      <div class="panel-t">Avionics block map <small>click any block</small></div>
+      <div class="lanes">
+        <div class="lane power"><h4>Power lane</h4><div class="blocks" id="lnPower"></div></div>
+        <div class="lane control"><h4>Control lane</h4><div class="blocks" id="lnControl"></div></div>
+        <div class="lane payload"><h4>Payload &amp; comms lane</h4><div class="blocks" id="lnPayload"></div></div>
+      </div>
+      <div class="detail" id="compDet"></div>
+    </div>
+
+    <figure class="fig">
+      <svg viewBox="0 0 920 400" font-family="IBM Plex Mono,monospace" font-size="10" fill="#151B13" role="img" aria-label="Electrical block schematic of a multirotor">
+        <defs>
+          <marker id="f6p" markerWidth="9" markerHeight="9" refX="7" refY="3" orient="auto"><path d="M0,0 L7,3 L0,6 Z" fill="#B3157E"/></marker>
+          <marker id="f6s" markerWidth="9" markerHeight="9" refX="7" refY="3" orient="auto"><path d="M0,0 L7,3 L0,6 Z" fill="#1E5F8C"/></marker>
+        </defs>
+        <g font-size="9.5">
+          <g fill="#F6F7F0" stroke="#151B13" stroke-width="1.6">
+            <rect x="14" y="150" width="108" height="54"/><rect x="164" y="150" width="104" height="54"/><rect x="310" y="150" width="92" height="54"/>
+            <rect x="452" y="34" width="86" height="40"/><rect x="452" y="94" width="86" height="40"/><rect x="452" y="154" width="86" height="40"/><rect x="452" y="214" width="86" height="40"/>
+            <rect x="602" y="34" width="80" height="40"/><rect x="602" y="94" width="80" height="40"/><rect x="602" y="154" width="80" height="40"/><rect x="602" y="214" width="80" height="40"/>
+            <rect x="292" y="286" width="128" height="52"/>
+            <rect x="474" y="286" width="96" height="24"/><rect x="474" y="316" width="96" height="24"/>
+            <rect x="602" y="286" width="96" height="24"/><rect x="602" y="316" width="96" height="24"/>
+            <rect x="736" y="286" width="120" height="24"/><rect x="736" y="316" width="120" height="24"/>
+          </g>
+          <g text-anchor="middle" font-weight="600">
+            <text x="68" y="172">LiPo BATTERY</text><text x="216" y="172">POWER MODULE</text><text x="356" y="172">PDB</text>
+            <text x="356" y="312">FLIGHT CONTROLLER</text>
+          </g>
+          <g text-anchor="middle" font-size="9" fill="#4C5548">
+            <text x="68" y="188">4S · 5200 mAh</text><text x="68" y="200">energy store</text>
+            <text x="216" y="188">volts + amps sensed</text><text x="216" y="200">+ 5 V BEC out</text>
+            <text x="356" y="188">splits the pack</text><text x="356" y="200">one lead per ESC</text>
+            <text x="356" y="328">sensor fusion · control law · failsafes</text>
+          </g>
+          <g text-anchor="middle" font-weight="600">
+            <text x="495" y="58">ESC 1</text><text x="495" y="118">ESC 2</text><text x="495" y="178">ESC 3</text><text x="495" y="238">ESC 4</text>
+            <text x="642" y="58">MOTOR 1</text><text x="642" y="118">MOTOR 2</text><text x="642" y="178">MOTOR 3</text><text x="642" y="238">MOTOR 4</text>
+          </g>
+          <g text-anchor="middle" font-size="9">
+            <text x="522" y="302">IMU</text><text x="522" y="332">MAGNETOMETER</text>
+            <text x="650" y="302">BAROMETER</text><text x="650" y="332">GNSS</text>
+            <text x="796" y="302">RC RECEIVER</text><text x="796" y="332">TELEMETRY RADIO</text>
+          </g>
+          <g stroke="#B3157E" stroke-width="3" fill="none" marker-end="url(#f6p)">
+            <line x1="122" y1="177" x2="158" y2="177"/><line x1="268" y1="177" x2="304" y2="177"/>
+            <path d="M402 172 L426 172 L426 54 L446 54"/><path d="M402 174 L426 174 L426 114 L446 114"/>
+            <line x1="402" y1="177" x2="446" y2="177"/><path d="M402 182 L426 182 L426 234 L446 234"/>
+            <line x1="538" y1="54" x2="596" y2="54"/><line x1="538" y1="114" x2="596" y2="114"/>
+            <line x1="538" y1="174" x2="596" y2="174"/><line x1="538" y1="234" x2="596" y2="234"/>
+            <path d="M216 204 L216 262 L356 262 L356 280"/>
+          </g>
+          <g stroke="#1E5F8C" stroke-width="1.6" fill="none" marker-end="url(#f6s)" stroke-dasharray="5 4">
+            <path d="M420 300 L446 300"/><path d="M420 306 L446 328"/>
+            <path d="M570 298 L596 298"/><path d="M570 306 L596 328"/>
+            <path d="M736 298 L706 298" marker-end="url(#f6s)"/><path d="M736 328 L706 316" marker-end="url(#f6s)"/>
+            <path d="M292 300 L232 300 L232 226 L340 226 L340 172" stroke-dasharray="5 4"/>
+            <path d="M330 286 L330 250 L470 250 L470 76" />
+            <path d="M340 286 L340 244 L484 244 L484 136"/>
+            <path d="M348 286 L348 238 L498 238 L498 196"/>
+            <path d="M356 286 L356 232 L512 232 L512 256"/>
+          </g>
+        </g>
+        <g font-size="9.5">
+          <line x1="14" y1="366" x2="54" y2="366" stroke="#B3157E" stroke-width="3"/><text x="62" y="370">POWER — high current, thick wire</text>
+          <line x1="266" y1="366" x2="306" y2="366" stroke="#1E5F8C" stroke-width="1.6" stroke-dasharray="5 4"/><text x="314" y="370">SIGNAL — low current, data</text>
+          <text x="520" y="370" fill="#4C5548">BEC = battery eliminator circuit, the 5 V supply that keeps the flight controller alive</text>
+        </g>
+      </svg>
+      <figcaption><b>FIG 1.6</b> Electrical schematic of a quadcopter. Thick magenta lines carry current, dashed blue lines carry data. PDB = power distribution board, ESC = electronic speed controller, IMU = inertial measurement unit, GNSS = satellite positioning.</figcaption>
+    </figure>
+
+    <div class="panel">
+      <div class="panel-t">Battery &amp; hover-endurance calculator <small>live</small></div>
+      <div class="two">
+        <div>
+          <div class="field"><label>Airframe dry mass (g) — frame, motors, ESCs, FC</label><input type="number" id="cDry" value="900"></div>
+          <div class="field"><label>Battery capacity (mAh)</label><input type="number" id="cCap" value="5200"></div>
+          <div class="field"><label>Cell count (S) — 3.7 V nominal per cell</label><input type="number" id="cS" value="4"></div>
+          <div class="field"><label>Battery mass (g)</label><input type="number" id="cBat" value="480"></div>
+          <div class="field"><label>Payload mass (g) — set by the payload picker in WP 08</label><input type="number" id="cPay" value="200"></div>
+          <div class="slider"><label for="cEff">Propulsion efficiency (grams of lift per watt)</label>
+            <input type="range" id="cEff" min="4" max="12" step="0.5" value="8"><output id="cEffO">8 g/W</output></div>
+          <div class="slider"><label for="cThr">Max static thrust per motor (g)</label>
+            <input type="range" id="cThr" min="200" max="3000" step="50" value="1100"><output id="cThrO">1100 g</output></div>
+        </div>
+        <div>
+          <div class="reads" style="grid-template-columns:1fr 1fr">
+            <div class="read"><i>All-up weight</i><b id="oAUW">—</b></div>
+            <div class="read"><i>Hover power</i><b id="oPow">—</b></div>
+            <div class="read"><i>Hover current</i><b id="oCur">—</b></div>
+            <div class="read"><i>Required C-rating</i><b id="oCr">—</b></div>
+            <div class="read"><i>Hover endurance</i><b id="oEnd">—</b></div>
+            <div class="read"><i>Thrust-to-weight</i><b id="oTW">—</b></div>
+          </div>
+          <div class="detail" id="calcDet"></div>
+        </div>
+      </div>
+      <p class="mono" style="color:var(--ink2)">t (min) = (C<sub>Ah</sub> × usable 0.8 × 60) ⁄ I &nbsp;·&nbsp; I = P⁄V &nbsp;·&nbsp; P = AUW ⁄ efficiency &nbsp;·&nbsp; V = S × 3.7</p>
+    </div>
+  </section>
+
+  <!-- ================= 08 ================= -->
+  <section class="leg" id="l8">
+    <div class="leg-head"><div class="leg-no">WP 08</div><div>
+      <div class="leg-kicker">The reason it flies</div><h2>UAV Payloads</h2></div></div>
+
+    <p class="lede">The payload is everything carried that is not needed to fly. Selecting one is a four-way trade between <b>mass, power, data rate and gimbal stabilisation</b>. Add payloads below and watch the endurance in WP 07 fall.</p>
+
+    <div class="panel">
+      <div class="panel-t">Payload bay <small>click to load / unload</small></div>
+      <div class="ctl" id="payCtl"></div>
+      <div class="reads" style="grid-template-columns:repeat(3,1fr)">
+        <div class="read"><i>Payload mass</i><b id="pMass">0 <s>g</s></b></div>
+        <div class="read"><i>Payload power</i><b id="pPow">0 <s>W</s></b></div>
+        <div class="read"><i>Data rate</i><b id="pData">0 <s>Mbps</s></b></div>
+      </div>
+      <div class="detail" id="payDet">Nothing loaded. Pick a sensor to see what it measures, what it costs you in mass and power, and what it is used for.</div>
+    </div>
+
+    <figure class="fig">
+      <svg viewBox="0 0 920 250" font-family="IBM Plex Mono,monospace" font-size="10" fill="#151B13" role="img" aria-label="Three axis camera gimbal">
+        <g transform="translate(250,125)" fill="none" stroke="#151B13">
+          <ellipse cx="0" cy="0" rx="104" ry="34" stroke-width="2" stroke="#B3157E"/>
+          <ellipse cx="0" cy="0" rx="76" ry="76" stroke-width="2" stroke="#1E5F8C"/>
+          <ellipse cx="0" cy="0" rx="34" ry="52" stroke-width="2" stroke="#D98200"/>
+          <rect x="-22" y="-16" width="44" height="32" rx="4" fill="#F6F7F0" stroke-width="1.6"/>
+          <circle cx="0" cy="0" r="10" fill="#151B13" stroke="none"/><circle cx="-3" cy="-3" r="3" fill="#F6F7F0" stroke="none"/>
+          <line x1="0" y1="-76" x2="0" y2="-104" stroke-width="3"/><rect x="-30" y="-118" width="60" height="14" fill="#F6F7F0" stroke-width="1.6"/>
+          <text x="0" y="-108" text-anchor="middle" font-size="9" stroke="none" fill="#151B13">AIRFRAME MOUNT</text>
+        </g>
+        <g font-size="10">
+          <line x1="354" y1="125" x2="470" y2="125" stroke="#B3157E" stroke-width="1.2"/><text x="478" y="121" fill="#B3157E" font-weight="600">YAW / PAN AXIS</text>
+          <text x="478" y="136" fill="#4C5548" font-size="9">rotates the camera left and right, independently of where the drone points</text>
+          <line x1="322" y1="72" x2="470" y2="58" stroke="#1E5F8C" stroke-width="1.2"/><text x="478" y="54" fill="#1E5F8C" font-weight="600">ROLL AXIS</text>
+          <text x="478" y="69" fill="#4C5548" font-size="9">keeps the horizon level while the drone banks into a turn</text>
+          <line x1="286" y1="180" x2="470" y2="192" stroke="#D98200" stroke-width="1.2"/><text x="478" y="188" fill="#D98200" font-weight="600">PITCH / TILT AXIS</text>
+          <text x="478" y="203" fill="#4C5548" font-size="9">points the lens from straight ahead to straight down (nadir, used for mapping)</text>
+        </g>
+        <g font-size="9" fill="#4C5548">
+          <text x="14" y="228">A 2-axis gimbal has pitch and roll only and is enough for mapping; the third, yaw axis is what makes cinematic tracking and</text>
+          <text x="14" y="241">independent target following possible. Each axis is a small brushless motor driven from the gimbal's own inertial sensor.</text>
+        </g>
+      </svg>
+      <figcaption><b>FIG 1.7</b> A three-axis gimbal. Each ring is one motorised axis that absorbs the airframe's motion so the sensor sees a stable scene.</figcaption>
+    </figure>
+
+    <div class="two">
+      <div class="panel">
+        <div class="panel-t">Payload selection rules</div>
+        <ul class="kl">
+          <li><b>Payload fraction</b> 10–30 % of MTOW for multirotors; every extra 100 g of sensor costs both endurance and control margin.</li>
+          <li><b>Centre of gravity</b> must stay on the thrust axis — an off-CG payload makes the FC fight a permanent trim offset and burns current.</li>
+          <li><b>Vibration isolation</b> rolling-shutter cameras and IMU-coupled sensors need damped mounts, or you get jello and blurred imagery.</li>
+          <li><b>Gimbal</b> 2-axis (pitch/roll) for mapping, 3-axis (adds yaw/pan) for cinematography and tracking.</li>
+          <li><b>Power &amp; data budget</b> LiDAR and hyperspectral can draw 20–60 W and produce data faster than any radio link can downstream — so they record on board.</li>
+          <li><b>Legal</b> payload determines whether the flight is "commercial", and cameras trigger privacy law.</li>
+        </ul>
+      </div>
+      <div class="panel">
+        <div class="panel-t">Consumable vs non-consumable</div>
+        <p><b>Non-consumable (dispensable) payloads</b> return with the aircraft — cameras, LiDAR, radios, radar. Mass is constant, so the trim is constant.</p>
+        <p><b>Consumable payloads</b> are released in flight — agricultural spray, seeds, delivery parcels, medical supplies, marker dye. Mass falls during the mission, which <em>improves</em> endurance but shifts the CG and changes handling, so spray drones use flow-rate compensation and tank baffles.</p>
+        <div class="stat-row" style="margin-top:10px">
+          <span class="badge">EO/RGB</span><span class="badge">Thermal IR</span><span class="badge">Multispectral</span>
+          <span class="badge">Hyperspectral</span><span class="badge">LiDAR</span><span class="badge">SAR</span>
+          <span class="badge">Gas sniffer</span><span class="badge">Magnetometer</span><span class="badge">Comms relay</span>
+          <span class="badge">Spray tank</span><span class="badge">Delivery winch</span><span class="badge">Loudspeaker</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= 09 ================= -->
+  <section class="leg" id="l9">
+    <div class="leg-head"><div class="leg-no">WP 09</div><div>
+      <div class="leg-kicker">Eyes on the link</div><h2>Real-Time Monitoring of UAV</h2></div></div>
+
+    <p class="lede">Monitoring means a continuous, low-latency stream of aircraft state to the ground station, and a matching stream of commands back. Start the simulator, then break something and watch the failsafe fire.</p>
+
+    <div class="panel">
+      <div class="panel-t">Ground control station simulator <small>live telemetry</small></div>
+      <div class="ctl">
+        <button class="chip mag on" id="tRun">Pause telemetry</button>
+        <button class="chip" data-fault="gps">Inject GPS loss</button>
+        <button class="chip" data-fault="rc">Inject RC link loss</button>
+        <button class="chip" data-fault="batt">Inject low battery</button>
+        <button class="chip" data-fault="vib">Inject high vibration</button>
+        <button class="chip" data-fault="clear">Clear all faults</button>
+      </div>
+      <div class="tele">
+        <div class="hzn"><svg id="hznSvg" viewBox="0 0 200 200" role="img" aria-label="Simulated attitude indicator"></svg></div>
+        <div>
+          <div class="tape" id="tape"></div>
+          <div class="alerts" id="alerts"></div>
+        </div>
+      </div>
+    </div>
+
+    <figure class="fig">
+      <svg viewBox="0 0 920 340" font-family="IBM Plex Mono,monospace" font-size="10" fill="#151B13" role="img" aria-label="Communication links between a drone, its pilot and the wider network">
+        <defs>
+          <marker id="f8a" markerWidth="9" markerHeight="9" refX="7" refY="3" orient="auto"><path d="M0,0 L7,3 L0,6 Z" fill="#B3157E"/></marker>
+          <marker id="f8b" markerWidth="9" markerHeight="9" refX="7" refY="3" orient="auto"><path d="M0,0 L7,3 L0,6 Z" fill="#1E5F8C"/></marker>
+          <marker id="f8c" markerWidth="9" markerHeight="9" refX="7" refY="3" orient="auto"><path d="M0,0 L7,3 L0,6 Z" fill="#D98200"/></marker>
+        </defs>
+        <g transform="translate(455,140)">
+          <line x1="-40" y1="-18" x2="40" y2="18" stroke="#151B13" stroke-width="5" opacity=".55" stroke-linecap="round"/>
+          <line x1="40" y1="-18" x2="-40" y2="18" stroke="#151B13" stroke-width="5" opacity=".55" stroke-linecap="round"/>
+          <ellipse cx="-40" cy="-18" rx="18" ry="3" fill="#B3157E" opacity=".7"/><ellipse cx="40" cy="-18" rx="18" ry="3" fill="#1E5F8C" opacity=".7"/>
+          <ellipse cx="-40" cy="18" rx="18" ry="3" fill="#1E5F8C" opacity=".7"/><ellipse cx="40" cy="18" rx="18" ry="3" fill="#B3157E" opacity=".7"/>
+          <rect x="-20" y="-11" width="40" height="22" rx="3" fill="#F6F7F0" stroke="#151B13" stroke-width="1.6"/>
+        </g>
+        <g fill="#F6F7F0" stroke="#151B13" stroke-width="1.6">
+          <rect x="30" y="230" width="96" height="46"/><rect x="30" y="120" width="96" height="46"/>
+          <rect x="790" y="120" width="104" height="46"/><rect x="790" y="230" width="104" height="46"/>
+          <rect x="404" y="18" width="100" height="34"/>
+        </g>
+        <g text-anchor="middle" font-weight="600" font-size="9.5">
+          <text x="78" y="248">RC TRANSMITTER</text><text x="78" y="138">GROUND STATION</text>
+          <text x="842" y="138">MOBILE NETWORK</text><text x="842" y="248">OTHER AIRSPACE USERS</text><text x="454" y="38">GNSS SATELLITES</text>
+        </g>
+        <g text-anchor="middle" font-size="9" fill="#4C5548">
+          <text x="78" y="262">pilot's sticks</text><text x="78" y="152">laptop + telemetry radio</text>
+          <text x="842" y="152">LTE / 5G for BVLOS</text><text x="842" y="262">receive Remote ID / ADS-B</text><text x="454" y="50">position, velocity, time</text>
+        </g>
+        <g fill="none" stroke-width="1.8">
+          <path d="M126 244 Q290 214 418 158" stroke="#B3157E" stroke-dasharray="7 5" marker-end="url(#f8a)"/>
+          <text x="250" y="228" fill="#B3157E" font-size="9.5">2.4 GHz control uplink — 1 to 5 km</text>
+          <path d="M126 142 Q290 112 416 128" stroke="#B3157E" stroke-dasharray="7 5" marker-end="url(#f8a)"/>
+          <text x="212" y="104" fill="#B3157E" font-size="9.5">433 / 915 MHz telemetry — two-way MAVLink</text>
+          <path d="M416 150 Q280 178 128 262" stroke="#1E5F8C" stroke-dasharray="7 5" marker-end="url(#f8b)"/>
+          <text x="230" y="286" fill="#1E5F8C" font-size="9.5">5.8 GHz video downlink — low latency FPV</text>
+          <path d="M494 148 Q640 176 786 246" stroke="#1E5F8C" stroke-dasharray="7 5" marker-end="url(#f8b)"/>
+          <text x="600" y="212" fill="#1E5F8C" font-size="9.5">Remote ID broadcast — who and where</text>
+          <path d="M496 128 Q650 108 786 142" stroke="#D98200" stroke-dasharray="7 5" marker-end="url(#f8c)"/>
+          <text x="596" y="96" fill="#D98200" font-size="9.5">LTE / 5G — beyond visual line of sight, cloud, UTM</text>
+          <path d="M450 56 L452 118" stroke="#151B13" stroke-dasharray="4 4" opacity=".6"/>
+          <text x="466" y="92" font-size="9" fill="#4C5548">one-way, receive only</text>
+        </g>
+        <line x1="20" y1="300" x2="900" y2="300" stroke="#151B13" stroke-width="1.4"/>
+        <text x="20" y="322" font-size="9" fill="#4C5548">Lower frequency travels further and bends around obstacles; higher frequency carries more data but needs a clearer line of sight. That single trade decides every link above.</text>
+      </svg>
+      <figcaption><b>FIG 1.8</b> The radio links around a drone. Command goes up, telemetry and video come down, satellite navigation is received only, and a mobile connection is what makes flight beyond visual line of sight possible.</figcaption>
+    </figure>
+
+    <div class="two">
+      <div class="panel">
+        <div class="panel-t">What is monitored, and why</div>
+        <table class="t">
+          <tr><th>Parameter</th><th>Source</th><th>Watched for</th></tr>
+          <tr><td class="hl">Attitude</td><td>IMU + EKF</td><td>Oscillation, tuning faults</td></tr>
+          <tr><td class="hl">Altitude AGL/AMSL</td><td>Baro, GNSS, lidar</td><td>Terrain &amp; ceiling limits</td></tr>
+          <tr><td class="hl">Position, sats, HDOP</td><td>GNSS</td><td>Fix quality before arming</td></tr>
+          <tr><td class="hl">Voltage, current, mAh</td><td>Power module</td><td>Return-to-launch decision</td></tr>
+          <tr><td class="hl">RSSI / link quality</td><td>RC + telemetry radio</td><td>Range limit, failsafe onset</td></tr>
+          <tr><td class="hl">Vibration, ESC temp</td><td>IMU, ESC telemetry</td><td>Prop damage, motor failure</td></tr>
+          <tr><td class="hl">Flight mode, EKF health</td><td>Autopilot</td><td>Unexpected mode changes</td></tr>
+        </table>
+      </div>
+      <div class="panel">
+        <div class="panel-t">Links, protocols &amp; failsafes</div>
+        <ul class="kl">
+          <li><b>C2 link</b> Command &amp; control uplink: 2.4 GHz RC, or LTE/5G for BVLOS.</li>
+          <li><b>Telemetry</b> <span class="mono">MAVLink</span> over 433/868/915 MHz radios, or over IP; carries heartbeat, attitude, GPS, battery at 1–10 Hz.</li>
+          <li><b>Video</b> analogue 5.8 GHz FPV (lowest latency) or digital HD / RTMP over cellular (higher latency, better quality).</li>
+          <li><b>GCS software</b> Mission Planner, QGroundControl — map, HUD, parameter editor, log download.</li>
+          <li><b>Failsafes</b> RC loss → hold/RTL; GCS loss → continue mission or RTL; low battery → land; geofence breach → stop at the boundary; GPS loss → switch to altitude-hold on baro + optical flow.</li>
+          <li><b>Regulatory monitoring</b> Remote ID broadcast, and in India the Digital Sky / NPNT ("No Permission, No Take-off") workflow with logged flight authorisation.</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= 10 ================= -->
+  <section class="leg" id="l10">
+    <div class="leg-head"><div class="leg-no">WP 10</div><div>
+      <div class="leg-kicker">Mission to map</div><h2>UAV Data Collection</h2></div></div>
+
+    <p class="lede">A survey is planned backwards from the answer you need. Required accuracy fixes ground sample distance, GSD fixes flight altitude, altitude and overlap fix the number of images, and the image count fixes the battery plan.</p>
+
+    <div class="panel">
+      <div class="panel-t">Survey planner — GSD &amp; image count <small>live</small></div>
+      <div class="two">
+        <div>
+          <div class="field"><label>Sensor width (mm)</label><input type="number" id="gSw" value="13.2" step="0.1"></div>
+          <div class="field"><label>Image width / height (px)</label>
+            <div style="display:flex;gap:8px"><input type="number" id="gIw" value="5472"><input type="number" id="gIh" value="3648"></div></div>
+          <div class="field"><label>Focal length (mm)</label><input type="number" id="gF" value="8.8" step="0.1"></div>
+          <div class="field"><label>Survey area (hectares)</label><input type="number" id="gA" value="25"></div>
+          <div class="slider"><label for="gH">Flight altitude AGL (m)</label>
+            <input type="range" id="gH" min="15" max="180" step="1" value="70"><output id="gHO">70 m</output></div>
+          <div class="slider"><label for="gFo">Front (along-track) overlap</label>
+            <input type="range" id="gFo" min="50" max="90" step="1" value="80"><output id="gFoO">80 %</output></div>
+          <div class="slider"><label for="gSo">Side (across-track) overlap</label>
+            <input type="range" id="gSo" min="40" max="90" step="1" value="70"><output id="gSoO">70 %</output></div>
+        </div>
+        <div>
+          <div class="reads" style="grid-template-columns:1fr 1fr">
+            <div class="read"><i>Ground sample distance</i><b id="oGsd">—</b></div>
+            <div class="read"><i>Footprint per image</i><b id="oFp">—</b></div>
+            <div class="read"><i>Line spacing</i><b id="oLs">—</b></div>
+            <div class="read"><i>Shots per line</i><b id="oShot">—</b></div>
+            <div class="read"><i>Total images</i><b id="oImg">—</b></div>
+            <div class="read"><i>Est. raw data</i><b id="oData">—</b></div>
+            <div class="read"><i>Flight lines</i><b id="oLines">—</b></div>
+            <div class="read"><i>Est. flight time @ 6 m/s</i><b id="oTime">—</b></div>
+          </div>
+          <div class="detail" id="gsdDet"></div>
+        </div>
+      </div>
+      <p class="mono" style="color:var(--ink2)">GSD (cm/px) = (sensor width mm × altitude m × 100) ⁄ (focal length mm × image width px)</p>
+    </div>
+
+    <figure class="fig">
+      <svg id="surveySvg" viewBox="0 0 920 400" font-family="IBM Plex Mono,monospace" font-size="10" fill="#151B13" role="img" aria-label="Survey geometry showing camera footprint and image overlap">
+        <defs><marker id="f9a" markerWidth="8" markerHeight="8" refX="4" refY="2.5" orient="auto"><path d="M0,0 L5,2.5 L0,5 Z" fill="#151B13"/></marker></defs>
+        <text x="14" y="18" letter-spacing="1.6" fill="#4C5548">SIDE VIEW — WHAT ONE PHOTOGRAPH SEES</text>
+        <g transform="translate(210,44)">
+          <line x1="-42" y1="0" x2="42" y2="0" stroke="#151B13" stroke-width="4" opacity=".55"/>
+          <rect x="-16" y="-9" width="32" height="18" rx="3" fill="#F6F7F0" stroke="#151B13" stroke-width="1.5"/>
+          <ellipse cx="-42" cy="0" rx="15" ry="2.6" fill="#B3157E" opacity=".7"/><ellipse cx="42" cy="0" rx="15" ry="2.6" fill="#1E5F8C" opacity=".7"/>
+          <path d="M-6 10 L6 10 L4 20 L-4 20 Z" fill="#151B13"/>
+        </g>
+        <path id="sCone" d="M210 66 L60 250 L360 250 Z" fill="#1E5F8C" opacity=".15"/>
+        <path id="sCone2" d="M210 66 L60 250 M210 66 L360 250" stroke="#1E5F8C" stroke-width="1.2" stroke-dasharray="5 4" fill="none"/>
+        <line x1="30" y1="250" x2="420" y2="250" stroke="#151B13" stroke-width="1.8"/>
+        <line x1="210" y1="66" x2="210" y2="250" stroke="#151B13" stroke-width="1" stroke-dasharray="4 4" marker-end="url(#f9a)"/>
+        <text id="sAlt" x="218" y="160" fill="#B3157E" font-weight="600">H = 70 m</text>
+        <line x1="60" y1="264" x2="360" y2="264" stroke="#151B13" stroke-width="1" marker-start="url(#f9a)" marker-end="url(#f9a)"/>
+        <text id="sFoot" x="210" y="280" text-anchor="middle" fill="#B3157E" font-weight="600">footprint 99 × 66 m</text>
+        <g transform="translate(300,214)">
+          <rect x="0" y="0" width="26" height="26" fill="none" stroke="#B3157E" stroke-width="1.4"/>
+          <line x1="0" y1="8.6" x2="26" y2="8.6" stroke="#B3157E" stroke-width=".6"/><line x1="0" y1="17.3" x2="26" y2="17.3" stroke="#B3157E" stroke-width=".6"/>
+          <line x1="8.6" y1="0" x2="8.6" y2="26" stroke="#B3157E" stroke-width=".6"/><line x1="17.3" y1="0" x2="17.3" y2="26" stroke="#B3157E" stroke-width=".6"/>
+        </g>
+        <line x1="326" y1="222" x2="386" y2="200" stroke="#151B13" stroke-width=".9"/>
+        <text id="sGsd" x="390" y="198" fill="#B3157E" font-weight="600">1 pixel = 1.82 cm on the ground (GSD)</text>
+        <text x="390" y="214" font-size="9" fill="#4C5548">Fly higher and each pixel covers more ground:</text>
+        <text x="390" y="227" font-size="9" fill="#4C5548">coarser detail, but far fewer photographs needed.</text>
+        <text x="390" y="248" font-size="9.5" fill="#4C5548">GSD = (sensor width × H × 100) ÷ (focal length × image width px)</text>
+
+        <text x="480" y="18" letter-spacing="1.6" fill="#4C5548">PLAN VIEW — HOW THE PHOTOGRAPHS OVERLAP</text>
+        <g id="sPlan"></g>
+        <text x="14" y="308" letter-spacing="1.6" fill="#4C5548">WHY OVERLAP IS NEEDED</text>
+        <text x="14" y="326" font-size="9.5" fill="#4C5548">Photogrammetry reconstructs 3D shape by seeing the same ground point from several camera positions.</text>
+        <text x="14" y="340" font-size="9.5" fill="#4C5548">Below roughly 60 % front overlap the software loses the match and the map tears apart.</text>
+        <text x="14" y="354" font-size="9.5" fill="#4C5548">Typical: 75–85 % front (along the flight line), 60–75 % side (between adjacent lines).</text>
+        <text x="14" y="374" font-size="9.5" fill="#B3157E">Move the altitude and overlap sliders above — this figure redraws to match.</text>
+      </svg>
+      <figcaption><b>FIG 1.9</b> Survey geometry. The camera's field of view projects a footprint on the ground; flying higher enlarges the footprint and coarsens the ground sample distance. Consecutive photographs must overlap heavily for 3D reconstruction to work.</figcaption>
+    </figure>
+
+    <div class="panel">
+      <div class="panel-t">The data pipeline <small>click a stage</small></div>
+      <div class="ctl" id="pipeCtl"></div>
+      <div class="detail" id="pipeDet"></div>
+    </div>
+
+    <div class="two">
+      <div class="panel">
+        <div class="panel-t">Flight patterns</div>
+        <ul class="kl">
+          <li><b>Lawnmower / grid</b> parallel lines over an area — the default for orthomosaics.</li>
+          <li><b>Double grid</b> a second grid at 90°, plus camera tilt — needed for 3D building models.</li>
+          <li><b>Corridor</b> a narrow strip following roads, rivers, pipelines, power lines.</li>
+          <li><b>Orbit / point of interest</b> circles a target at fixed radius and camera angle — towers, stacks, monuments.</li>
+          <li><b>Facade scan</b> vertical raster along a wall for structural inspection.</li>
+          <li><b>Terrain-following</b> AGL held constant over a DEM so GSD stays uniform on slopes.</li>
+        </ul>
+      </div>
+      <div class="panel">
+        <div class="panel-t">Getting position right</div>
+        <ul class="kl">
+          <li><b>Geotagging</b> each image is stamped with GNSS position + IMU attitude at shutter time.</li>
+          <li><b>GCPs</b> Ground Control Points — surveyed targets on the ground; the gold standard for absolute accuracy.</li>
+          <li><b>RTK</b> real-time kinematic correction from a base station → cm-level positions in flight.</li>
+          <li><b>PPK</b> post-processed kinematic — same accuracy, corrections applied after landing, no live radio link needed.</li>
+          <li><b>Checkpoints</b> extra surveyed points held back from processing to <em>measure</em> the achieved accuracy.</li>
+        </ul>
+        <div class="note" style="margin-bottom:0"><b>Trigger modes</b> — Time-lapse (simple, overlap varies with speed) vs distance-triggered (constant overlap, preferred) vs waypoint-triggered (exact repeatability for change detection).</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= 11 ================= -->
+  <section class="leg" id="l11">
+    <div class="leg-head"><div class="leg-no">WP 11</div><div>
+      <div class="leg-kicker">Hard problems</div><h2>Challenges of UAV Networks</h2></div></div>
+
+    <p class="lede">Put several UAVs on one network and you get a <b>FANET</b> — a Flying Ad-hoc Network. It inherits every problem of a mobile ad-hoc network and adds three-dimensional movement at 30–100 km/h, a severe energy budget, and nodes that go out of range constantly.</p>
+
+    <div class="panel">
+      <div class="panel-t">FANET vs MANET vs VANET</div>
+      <table class="t">
+        <tr><th>Attribute</th><th>MANET</th><th>VANET</th><th>FANET</th></tr>
+        <tr><td class="hl">Node mobility</td><td>Low</td><td>High, road-constrained</td><td>Very high, unconstrained 3D</td></tr>
+        <tr><td class="hl">Node density</td><td>Moderate</td><td>Dense</td><td>Sparse</td></tr>
+        <tr><td class="hl">Topology change</td><td>Slow</td><td>Fast</td><td>Very fast</td></tr>
+        <tr><td class="hl">Inter-node distance</td><td>Metres</td><td>Tens of metres</td><td>Hundreds of m to km</td></tr>
+        <tr><td class="hl">Radio propagation</td><td>Cluttered, NLoS</td><td>Cluttered</td><td>Mostly line-of-sight</td></tr>
+        <tr><td class="hl">Energy source</td><td>Battery, rechargeable</td><td>Vehicle supply — ample</td><td>Battery, also powering flight</td></tr>
+        <tr><td class="hl">Localisation</td><td>GPS</td><td>GPS + DGPS</td><td>GPS + IMU + AHRS</td></tr>
+      </table>
+    </div>
+
+    <figure class="fig">
+      <svg viewBox="0 0 920 330" font-family="IBM Plex Mono,monospace" font-size="10" fill="#151B13" role="img" aria-label="Topology of a flying ad hoc network">
+        <defs><marker id="faa" markerWidth="9" markerHeight="9" refX="7" refY="3" orient="auto"><path d="M0,0 L7,3 L0,6 Z" fill="#4C5548"/></marker></defs>
+        <g stroke="#1E5F8C" stroke-width="1.8">
+          <line x1="150" y1="90" x2="270" y2="150"/><line x1="270" y1="150" x2="200" y2="230"/>
+          <line x1="150" y1="90" x2="200" y2="230"/><line x1="270" y1="150" x2="410" y2="110"/>
+          <line x1="620" y1="120" x2="740" y2="180"/><line x1="620" y1="120" x2="700" y2="60"/>
+        </g>
+        <g stroke="#B3157E" stroke-width="1.6" stroke-dasharray="6 5"><line x1="410" y1="110" x2="620" y2="120"/></g>
+        <text x="515" y="98" text-anchor="middle" fill="#B3157E" font-size="9.5">LINK BROKEN — out of range</text>
+        <text x="515" y="140" text-anchor="middle" fill="#B3157E" font-size="9.5">NETWORK PARTITION</text>
+        <g stroke="#D98200" stroke-width="1.6" stroke-dasharray="4 4">
+          <line x1="200" y1="230" x2="130" y2="292"/><line x1="740" y1="180" x2="800" y2="288"/>
+        </g>
+        <g fill="#F6F7F0" stroke="#151B13" stroke-width="1.5">
+          <g transform="translate(150,90)"><line x1="-20" y1="-9" x2="20" y2="9" stroke-width="3.5" opacity=".6"/><line x1="20" y1="-9" x2="-20" y2="9" stroke-width="3.5" opacity=".6"/><rect x="-11" y="-7" width="22" height="14" rx="3"/></g>
+          <g transform="translate(270,150)"><line x1="-24" y1="-11" x2="24" y2="11" stroke-width="4" opacity=".6"/><line x1="24" y1="-11" x2="-24" y2="11" stroke-width="4" opacity=".6"/><rect x="-14" y="-9" width="28" height="18" rx="3"/></g>
+          <g transform="translate(200,230)"><line x1="-20" y1="-9" x2="20" y2="9" stroke-width="3.5" opacity=".6"/><line x1="20" y1="-9" x2="-20" y2="9" stroke-width="3.5" opacity=".6"/><rect x="-11" y="-7" width="22" height="14" rx="3"/></g>
+          <g transform="translate(410,110)"><line x1="-20" y1="-9" x2="20" y2="9" stroke-width="3.5" opacity=".6"/><line x1="20" y1="-9" x2="-20" y2="9" stroke-width="3.5" opacity=".6"/><rect x="-11" y="-7" width="22" height="14" rx="3"/></g>
+          <g transform="translate(620,120)"><line x1="-24" y1="-11" x2="24" y2="11" stroke-width="4" opacity=".6"/><line x1="24" y1="-11" x2="-24" y2="11" stroke-width="4" opacity=".6"/><rect x="-14" y="-9" width="28" height="18" rx="3"/></g>
+          <g transform="translate(700,60)"><line x1="-20" y1="-9" x2="20" y2="9" stroke-width="3.5" opacity=".6"/><line x1="20" y1="-9" x2="-20" y2="9" stroke-width="3.5" opacity=".6"/><rect x="-11" y="-7" width="22" height="14" rx="3"/></g>
+          <g transform="translate(740,180)"><line x1="-20" y1="-9" x2="20" y2="9" stroke-width="3.5" opacity=".6"/><line x1="20" y1="-9" x2="-20" y2="9" stroke-width="3.5" opacity=".6"/><rect x="-11" y="-7" width="22" height="14" rx="3"/></g>
+        </g>
+        <g stroke="#4C5548" stroke-width="1.2" marker-end="url(#faa)" opacity=".8">
+          <line x1="160" y1="72" x2="196" y2="52"/><line x1="424" y1="94" x2="466" y2="72"/><line x1="632" y1="104" x2="668" y2="128"/>
+        </g>
+        <text x="470" y="66" font-size="9" fill="#4C5548">nodes keep moving — this picture is valid for seconds</text>
+        <g text-anchor="middle" font-size="9.5" font-weight="600">
+          <text x="270" y="186">CLUSTER HEAD</text><text x="150" y="66">MEMBER</text><text x="620" y="156">SECOND CLUSTER</text>
+        </g>
+        <line x1="20" y1="300" x2="900" y2="300" stroke="#151B13" stroke-width="1.6"/>
+        <g fill="#F6F7F0" stroke="#151B13" stroke-width="1.5">
+          <rect x="82" y="292" width="96" height="8"/><rect x="754" y="288" width="92" height="12"/>
+        </g>
+        <path d="M130 292 L130 268 M122 268 L138 268" stroke="#151B13" stroke-width="1.5" fill="none"/>
+        <text x="130" y="318" text-anchor="middle" font-size="9.5" font-weight="600">GROUND CONTROL STATION</text>
+        <text x="800" y="318" text-anchor="middle" font-size="9.5" font-weight="600">RELAY / BASE STATION</text>
+        <g font-size="9.5">
+          <line x1="330" y1="248" x2="366" y2="248" stroke="#1E5F8C" stroke-width="1.8"/><text x="374" y="252">drone-to-drone link, alive</text>
+          <line x1="530" y1="248" x2="566" y2="248" stroke="#B3157E" stroke-width="1.6" stroke-dasharray="6 5"/><text x="574" y="252">link lost, cluster isolated</text>
+          <line x1="330" y1="268" x2="366" y2="268" stroke="#D98200" stroke-width="1.6" stroke-dasharray="4 4"/><text x="374" y="272">drone-to-infrastructure link</text>
+        </g>
+      </svg>
+      <figcaption><b>FIG 1.10</b> A flying ad-hoc network. Links live for seconds, clusters drift apart into partitions, and every node pays for transmission out of the same battery that keeps it airborne.</figcaption>
+    </figure>
+
+    <div class="panel">
+      <div class="panel-t">Challenge cards <small>click a card for the mitigation</small></div>
+      <div class="cards" id="chCards"></div>
+    </div>
+
+    <div class="note"><b>Answer structure</b> — When a question asks "challenges of UAV networks", group them: <b>(1) mobility &amp; topology, (2) link &amp; spectrum, (3) energy, (4) routing &amp; protocol, (5) security &amp; privacy, (6) safety &amp; regulation.</b> Six headed groups score better than a flat list.</div>
+  </section>
+
+  <!-- ================= 12 ================= -->
+  <section class="leg" id="l12">
+    <div class="leg-head"><div class="leg-no">WP 12</div><div>
+      <div class="leg-kicker">Approach &amp; landing</div><h2>Rapid Revision &amp; Self-Check</h2></div></div>
+
+    <div class="panel">
+      <div class="panel-t">One-line recall</div>
+      <ul class="kl">
+        <li><b>UAS = </b>UAV (the aircraft) + GCS (ground control station) + data link + payload + launch/recovery gear + crew.</li>
+        <li><b>India weight bands = </b>250 g / 2 kg / 25 kg / 150 kg boundaries → nano, micro, small, medium, large.</li>
+        <li><b>NATO = </b>Class I (&lt;150 kg: micro/mini/small), Class II (150–600 kg), Class III (&gt;600 kg).</li>
+        <li><b>Altitude ladder = </b>LASE (low altitude, short endurance) → LALE (low altitude, long endurance) → MALE (medium altitude, long endurance) → HALE (high altitude, long endurance) → HAPS (high altitude pseudo-satellite).</li>
+        <li><b>Airframes = </b>fixed-wing, single-rotor, multirotor, hybrid VTOL (vertical take-off and landing), flapping-wing, lighter-than-air.</li>
+        <li><b>Multirotor control = </b>differential thrust only; yaw comes from the torque imbalance between the CW (clockwise) and CCW (counter-clockwise) propellers.</li>
+        <li><b>Power chain = </b>LiPo (lithium-polymer) battery → PDB (power distribution board) → ESC (electronic speed controller) → BLDC (brushless DC) motor → propeller; the BEC (battery eliminator circuit) taps 5 V for the FC (flight controller).</li>
+        <li><b>Core sensors = </b>gyroscope + accelerometer together forming the IMU (inertial measurement unit), magnetometer (compass), barometer (pressure altitude), GNSS (satellite positioning), optionally lidar or optical flow.</li>
+        <li><b>Payload trade = </b>mass vs power vs data rate vs stabilisation.</li>
+        <li><b>Monitoring = </b>MAVLink telemetry + video downlink into a GCS, with layered failsafes such as RTL (return to launch).</li>
+        <li><b>GSD (ground sample distance) = </b>(sensor width × altitude × 100) / (focal length × image width) cm per pixel.</li>
+        <li><b>FANET (flying ad-hoc network) pain = </b>high 3D mobility, sparse nodes, short-lived links, tight energy, weak security.</li>
+      </ul>
+    </div>
+
+    <div class="panel">
+      <div class="panel-t">Self-check — 12 questions <small><span id="score">0 / 12</span></small></div>
+      <div id="quiz"></div>
+      <div class="ctl" style="margin-top:14px"><button class="chip mag" id="qReset">Reset quiz</button></div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-t">Likely long-answer questions</div>
+      <ul class="kl">
+        <li>Define UAV and UAS. Explain the components of a UAS with a neat block diagram.</li>
+        <li>Classify UAVs on the basis of weight, range and altitude. Give one example of each.</li>
+        <li>Compare fixed-wing, rotary-wing and hybrid VTOL UAVs on endurance, launch, payload and application.</li>
+        <li>With a diagram, explain how roll, pitch, yaw and throttle are generated in a quadcopter.</li>
+        <li>Draw the electrical block diagram of a multirotor and describe the function of the ESC, PDB, BEC and flight controller.</li>
+        <li>What is a payload? Discuss selection criteria and list five sensor payloads with their applications.</li>
+        <li>Explain the real-time monitoring architecture of a UAV. What parameters are monitored and what failsafes exist?</li>
+        <li>Describe the UAV data-collection workflow from mission planning to orthomosaic. Derive the GSD expression.</li>
+        <li>Discuss the challenges of UAV networks (FANETs) and compare FANET with MANET and VANET.</li>
+      </ul>
+    </div>
+
+  </section>
+
+  <!-- ================= KEY TAKEAWAYS ================= -->
+  <section class="leg" id="l13">
+    <div class="leg-head"><div class="leg-no">ARR</div><div>
+      <div class="leg-kicker">Arrival · what you carry off the aircraft</div><h2>Key Takeaways</h2></div></div>
+
+    <div class="headline">
+      <h3>If you remember only one thing</h3>
+      <p>A drone is not a flying camera — it is a <b>system</b> in which every choice is a trade against a fixed energy budget. Weight decides the law, lift method decides endurance, differential thrust decides control, the payload decides the mission, and the radio link decides how much of any of it you can actually see and command from the ground.</p>
+    </div>
+
+    <div class="tk">
+      <div class="tk-item"><i>01</i><div><h4>The vehicle is one part of the system</h4>
+        <p>UAV (unmanned aerial vehicle) means the aircraft alone. UAS (unmanned aircraft system) adds the ground control station, the data links, the payload, the launch and recovery method, and the trained crew. Exam answers that confuse the two lose marks immediately.</p></div></div>
+
+      <div class="tk-item"><i>02</i><div><h4>Mass is the legal axis because energy is</h4>
+        <p>Impact energy rises with mass, so regulators split drones at 250 g, 2 kg, 25 kg and 150 kg — nano, micro, small, medium, large under India's Drone Rules 2021. The military NATO scale (Class I / II / III) is the same idea drawn at different boundaries.</p></div></div>
+
+      <div class="tk-item"><i>03</i><div><h4>Classification depends on the question</h4>
+        <p>The same aircraft can be classed by weight, range, altitude, endurance, wing type, autonomy or application. Read which axis is being asked about before answering — LASE to HAPS is an altitude ladder, not a weight one.</p></div></div>
+
+      <div class="tk-item"><i>04</i><div><h4>Lift method sets everything downstream</h4>
+        <p>Fixed-wing buys endurance and area coverage but cannot hover. Multirotors buy hover and precision but burn their battery just to stay airborne. Hybrid VTOL buys both and pays in mass, cost and a risky transition moment.</p></div></div>
+
+      <div class="tk-item"><i>05</i><div><h4>Multirotors fly on differential thrust alone</h4>
+        <p>No swashplate, no control surfaces. Roll and pitch come from speeding one side up and the other down; yaw comes from unbalancing the reaction torque between CW (clockwise) and CCW (counter-clockwise) propellers, which is exactly why they alternate direction.</p></div></div>
+
+      <div class="tk-item"><i>06</i><div><h4>Motor count buys redundancy, not endurance</h4>
+        <p>A quadcopter that loses one motor cannot hold heading and comes down. A hexacopter survives one failure and an octocopter two — which is why expensive payloads and flights near people use six or eight motors, despite the extra weight and current draw.</p></div></div>
+
+      <div class="tk-item"><i>07</i><div><h4>Follow the energy through the power chain</h4>
+        <p>LiPo battery → power module → PDB (power distribution board) → ESC (electronic speed controller) → BLDC (brushless DC) motor → propeller. The ESC's whole job is turning DC into the three-phase AC waveform a brushless motor needs.</p></div></div>
+
+      <div class="tk-item"><i>08</i><div><h4>The control lane is a loop, not a chain</h4>
+        <p>IMU (inertial measurement unit), magnetometer, barometer and GNSS feed the FC (flight controller). Its EKF (extended Kalman filter) fuses them into one estimate of where the aircraft is and how it is oriented, the control law issues motor commands, and the aircraft's response returns through the same sensors.</p></div></div>
+
+      <div class="tk-item"><i>09</i><div><h4>Payload is a four-way trade</h4>
+        <p>Mass, power, data rate and stabilisation. Every extra 100 g costs endurance and control margin; sensors like LiDAR and hyperspectral generate data faster than any radio can send it, so they record on board and are processed after landing.</p></div></div>
+
+      <div class="tk-item"><i>10</i><div><h4>Thrust-to-weight below 2 : 1 is not flyable work</h4>
+        <p>Hovering consumes the thrust equal to the weight; everything above that is your margin for climbing, correcting and fighting gusts. Two-to-one is the practical floor for steady camera work, three or four to one for agile or windy flying.</p></div></div>
+
+      <div class="tk-item"><i>11</i><div><h4>Monitoring is two live streams plus failsafes</h4>
+        <p>Telemetry down (MAVLink over a 433/915 MHz radio or cellular) and command up (C2, the command and control link), displayed in a GCS. Layered failsafes — RTL (return to launch), land, geofence stop — decide what happens when either stream breaks.</p></div></div>
+
+      <div class="tk-item"><i>12</i><div><h4>Survey planning runs backwards from accuracy</h4>
+        <p>Required accuracy fixes GSD (ground sample distance), GSD fixes altitude, altitude and overlap fix the image count, and image count fixes the battery plan. Doubling altitude doubles GSD but roughly quarters the number of photographs.</p></div></div>
+
+      <div class="tk-item"><i>13</i><div><h4>Position accuracy comes from corrections, not the drone</h4>
+        <p>A bare GNSS fix is metres out. GCPs (ground control points), RTK (real-time kinematic) corrections in flight, or PPK (post-processed kinematic) corrections after landing are what turn an image set into a survey.</p></div></div>
+
+      <div class="tk-item"><i>14</i><div><h4>FANETs break conventional networking</h4>
+        <p>Nodes move fast in three dimensions, sit far apart, hold links for seconds, and spend the same battery on flying and transmitting. Routing must be position-aware and energy-aware; ordinary MANET protocols simply cannot keep up.</p></div></div>
+
+      <div class="tk-item"><i>15</i><div><h4>Security and airspace are the real blockers</h4>
+        <p>Civil GNSS is unauthenticated and many links are unencrypted, so jamming, spoofing and hijack are live threats. Combined with detect-and-avoid limits and shifting national rules, this — not battery chemistry — is what currently gates routine BVLOS (beyond visual line of sight) operation.</p></div></div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-t">Abbreviations decoded <small>type to filter · hover or tap any underlined term anywhere on this page</small></div>
+      <input class="search" id="glossQ" type="search" placeholder="Search an abbreviation or a word in its meaning — try ESC, kinematic, network">
+      <div class="gloss no-abbr" id="gloss"></div>
+    </div>
+
+    <div class="foot">
+      <span>Unit I · Basics of Unmanned Aerial Vehicles</span>
+      <span>Interactive study notes · all figures are illustrative teaching values</span>
+    </div>
+  </section>
+
+  </main>
+</div>
+
+<script>
+(function(){
+"use strict";
+const $=(s,r)=>(r||document).querySelector(s), $$=(s,r)=>[...(r||document).querySelectorAll(s)];
+const fmt=(n,d)=>Number(n).toFixed(d===undefined?1:d);
+
+/* ---------- hero waypoints ---------- */
+const wpPts=[[60,312],[150,262],[235,297],[320,212],[400,247],[480,162],[560,202],[640,132],[710,177],[780,107],[840,152],[890,82]];
+const wpNames=["What is a UAV","Unmanned systems","Categories","Classification","Types of UAV","Multirotors","Electricals","Payloads","Monitoring","Data collection","Network issues","Revision"];
+const NS="http://www.w3.org/2000/svg";
+const wpsG=$("#wps");
+wpPts.forEach((p,i)=>{
+  const g=document.createElementNS(NS,"g");
+  g.setAttribute("class","wp"); g.setAttribute("tabindex","0"); g.setAttribute("role","link");
+  g.setAttribute("aria-label","Waypoint "+(i+1)+": "+wpNames[i]);
+  g.innerHTML='<circle class="hit" cx="'+p[0]+'" cy="'+p[1]+'" r="12" fill="#F6F7F0" fill-opacity=".01"/>'+
+    '<circle cx="'+p[0]+'" cy="'+p[1]+'" r="6.5" fill="none" stroke="#151B13" stroke-width="1.6"/>'+
+    '<circle cx="'+p[0]+'" cy="'+p[1]+'" r="2.4" fill="#B3157E"/>'+
+    '<text x="'+p[0]+'" y="'+(p[1]-13)+'" text-anchor="middle" font-family="IBM Plex Mono,monospace" font-size="9.5" fill="#151B13">'+String(i+1).padStart(2,"0")+'</text>';
+  const go=()=>{const el=document.getElementById("l"+(i+1)); if(el) el.scrollIntoView({block:"start"});};
+  g.addEventListener("click",go);
+  g.addEventListener("keydown",e=>{if(e.key==="Enter"||e.key===" "){e.preventDefault();go();}});
+  wpsG.appendChild(g);
+});
+
+/* ---------- rail + progress ---------- */
+const legs=$$(".leg"), links=$$("#rail a");
+function onScroll(){
+  const y=window.scrollY+140; let idx=0;
+  legs.forEach((l,i)=>{ if(l.offsetTop<=y) idx=i; });
+  links.forEach((a,i)=>a.classList.toggle("on",i===idx));
+  const d=document.documentElement;
+  const p=Math.min(100,Math.max(0,(window.scrollY/(d.scrollHeight-d.clientHeight))*100));
+  $("#progFill").style.width=p+"%"; $("#progTxt").textContent=Math.round(p)+"%";
+}
+window.addEventListener("scroll",onScroll,{passive:true}); onScroll();
+
+/* generic chip-group helper */
+function chipGroup(host,items,render,initial,multi){
+  const el=$(host); el.innerHTML="";
+  items.forEach((it,i)=>{
+    const b=document.createElement("button");
+    b.className="chip"+(multi?" mag":""); b.textContent=it.label; b.dataset.i=i;
+    b.addEventListener("click",()=>{
+      if(multi){ b.classList.toggle("on"); render(); }
+      else { $$("button",el).forEach(x=>x.classList.remove("on")); b.classList.add("on"); render(it,i); }
+    });
+    el.appendChild(b);
+  });
+  if(!multi){ const b=$$("button",el)[initial||0]; b.classList.add("on"); render(items[initial||0],initial||0); }
+}
+
+/* ---------- WP01 UAS subsystems ---------- */
+const uas=[
+ {label:"Air vehicle",d:"The aircraft itself — airframe, propulsion, power, avionics and autopilot. Carries the payload and executes the flight. Sized by MTOW, endurance and payload capacity."},
+ {label:"Ground control station",d:"The pilot's workspace: map and mission planner, HUD, telemetry display, parameter editor, joystick or transmitter. Can be a laptop, a ruggedised case, a tablet, or a full shelter for large UAVs."},
+ {label:"Data link",d:"Two radio channels at minimum — an uplink for command and control (C2) and a downlink for telemetry and video. Defines the operating range, the latency the pilot feels, and the failure mode when it drops."},
+ {label:"Payload",d:"The mission equipment: cameras, thermal or multispectral sensors, LiDAR, radar, spray tanks, parcels, relays. The payload is the reason the flight exists."},
+ {label:"Launch &amp; recovery",d:"How it gets airborne and back: hand launch, catapult/bungee, runway, VTOL, and for recovery — belly landing, net, parachute, arrestor, or precision VTOL landing on a pad."},
+ {label:"Human element",d:"Remote pilot, payload operator, maintainer, and the procedures, checklists and training that bind them. Most UAV accidents trace back here, not to the hardware."}
+];
+chipGroup("#uasCtl",uas,(it)=>{ $("#uasDet").innerHTML="<h4>"+it.label+"</h4><p>"+it.d+"</p>"; },0);
+
+/* ---------- WP02 domains ---------- */
+const doms=[
+ {label:"UAV — air",d:"Unmanned aerial vehicle. Fastest coverage, no terrain obstruction, but severely energy-limited and heavily regulated because a failure falls on people.",ex:"DJI Phantom, MQ-9 Reaper, Global Hawk"},
+ {label:"UGV — ground",d:"Unmanned ground vehicle. Can carry heavy payloads and loiter for hours or days, but is blocked by terrain and moves slowly.",ex:"iRobot PackBot, DRDO Daksh, warehouse AMRs"},
+ {label:"USV — surface",d:"Unmanned surface vessel on water. Very long endurance (solar/wind harvesting), used for hydrography, patrol and mine countermeasures.",ex:"Saildrone, Sea Hunter"},
+ {label:"UUV — underwater",d:"Split into ROVs (tethered, human-driven, real-time video) and AUVs (untethered, pre-programmed). No radio underwater, so they use acoustic links and inertial navigation.",ex:"REMUS AUV, work-class ROVs"},
+ {label:"Space",d:"Unmanned orbiters, landers and rovers. Extreme latency forces on-board autonomy — a rover cannot be joysticked from Earth.",ex:"Pragyan rover, Perseverance"}
+];
+chipGroup("#domCtl",doms,(it)=>{ $("#domDet").innerHTML="<h4>"+it.label+"</h4><div class='spec'>Examples · "+it.ex+"</div><p>"+it.d+"</p>"; },0);
+
+const autoL=[
+ {t:"L0 · Manual / direct RC",d:"Pilot's stick commands go straight to the motors. The pilot is the stabilisation loop. Rare today outside acro FPV."},
+ {t:"L1 · Stabilised assistance",d:"The autopilot holds attitude and altitude; the pilot commands rates. Level the sticks and the aircraft levels itself."},
+ {t:"L2 · Position hold / loiter",d:"GNSS and barometer let the aircraft park in 3D space. Release the sticks and it stays put against wind."},
+ {t:"L3 · Waypoint automation",d:"A pre-planned mission is uploaded and flown automatically with camera triggering. The pilot supervises and can take over."},
+ {t:"L4 · Conditional autonomy",d:"On-board logic reacts to events — obstacle avoidance, terrain following, dynamic re-route, precision landing on a marker."},
+ {t:"L5 · Full autonomy / swarm",d:"Goal-level tasking. The aircraft (or the swarm) decides route, allocation and contingencies with no continuous human link."}
+];
+function autoRender(){ const v=+$("#autoS").value; $("#autoOut").textContent="L"+v;
+  $("#autoDet").innerHTML="<h4>"+autoL[v].t+"</h4><p>"+autoL[v].d+"</p>"; }
+$("#autoS").addEventListener("input",autoRender); autoRender();
+
+/* ---------- WP03 mass classifier ---------- */
+function massFromSlider(v){ return Math.pow(10,(v/100)*4.3-1)*1000/1000; } // 0.1 kg .. ~2000 kg, log
+function mtowRender(){
+  const kg=massFromSlider(+$("#mtowS").value);
+  $("#mtowOut").textContent = kg<1 ? Math.round(kg*1000)+" g" : fmt(kg,kg<10?2:0)+" kg";
+  let d,n,t,r,cls="";
+  if(kg<=0.25){d="Nano";n="Class I — Micro";t="Palm-size FPV, DJI Mini";r="Lightest — no UIN or pilot certificate for most uses";}
+  else if(kg<=2){d="Micro";n="Class I — Micro";t="Mavic-class, Parrot Anafi";r="UIN required; RPC for commercial use";cls="good";}
+  else if(kg<=25){d="Small";n="Class I — Mini / Small";t="Survey quad, agri sprayer, Matrice";r="UIN + RPC + type certificate; yellow-zone permission";cls="warn";}
+  else if(kg<=150){d="Medium";n="Class I — Small / Class II";t="Heavy-lift octo, cargo VTOL";r="Full certification, restricted operating areas";cls="warn";}
+  else {d="Large";n="Class II / III";t="Rustom-II, Predator, Global Hawk";r="Aircraft-grade certification and airspace integration";cls="bad";}
+  const set=(id,val,c)=>{const e=$(id);e.className="read "+(c||"");$("b",e).textContent=val;};
+  set("#rDgca",d,cls); set("#rNato",n,""); set("#rTyp",t,""); set("#rReg",r,cls);
+  const ke=0.5*kg*Math.pow(Math.sqrt(2*9.81*30),2);
+  $("#mtowDet").innerHTML="<h4>Why mass is the legal axis</h4><p>Impact energy scales with mass. Falling from 30 m, this aircraft arrives with roughly <b>"+Math.round(ke)+" J</b> of kinetic energy — for reference, about 80 J is the widely used threshold for serious head injury. That single number is why the rulebook splits at 250 g and 2 kg rather than at, say, rotor count.</p>";
+}
+$("#mtowS").addEventListener("input",mtowRender); mtowRender();
+
+/* ---------- WP04 classification axes ---------- */
+const axes=[
+ {label:"By range & endurance",h:["Class","Range","Endurance","Example"],r:[
+   ["Nano / micro","< 5 km","< 30 min","Black Hornet"],
+   ["Mini","< 25 km","< 2 h","RQ-11 Raven"],
+   ["Close range (CR)","~50 km","2–6 h","Netra, Skylark"],
+   ["Short range (SR)","~150 km","8–12 h","Hermes 450"],
+   ["Medium range (MR)","~650 km","10–18 h","Searcher II"],
+   ["MRE / endurance","~500 km","24–48 h","Heron"],
+   ["Long range / strategic","> 3000 km","24–48 h+","Global Hawk"]]},
+ {label:"By altitude",h:["Class","Operating altitude","Endurance","Typical role"],r:[
+   ["LASE","< 1 000 ft AGL","< 1 h","Hobby, inspection, small mapping"],
+   ["LALE","< 10 000 ft","> 24 h","Border and coastal watch"],
+   ["MALE","10 000–30 000 ft","24–48 h","Armed ISR — Heron, Predator"],
+   ["HALE","> 30 000 ft (to 65 000)","30 h+","Strategic recon — Global Hawk"],
+   ["HAPS","60 000–70 000 ft","Weeks–months","Solar pseudo-satellite, comms relay"]]},
+ {label:"By wing / lift",h:["Family","Lift source","Hover?","Note"],r:[
+   ["Fixed-wing","Wing in forward flight","No","Best endurance and area rate"],
+   ["Single-rotor","One main rotor + tail rotor","Yes","Heavy lift, long blades, complex"],
+   ["Multirotor","3–8+ fixed-pitch rotors","Yes","Simple, agile, short endurance"],
+   ["Hybrid VTOL","Rotors to launch, wing to cruise","Yes","Tilt-rotor, tail-sitter, quadplane"],
+   ["Flapping-wing","Oscillating wings","Yes","Micro-scale, bio-inspired, experimental"],
+   ["Lighter-than-air","Buoyancy","Yes","Airships, aerostats — very long loiter"]]},
+ {label:"By autonomy",h:["Type","Control","Human role"],r:[
+   ["Remotely piloted","Continuous stick input","In the loop"],
+   ["Semi-autonomous","Waypoints + supervision","On the loop"],
+   ["Fully autonomous","Goal-level tasking","Out of the loop"],
+   ["Swarm","Distributed, self-organising","Commands the swarm, not the aircraft"]]},
+ {label:"By application",h:["Sector","Mission","Typical payload"],r:[
+   ["Military","ISR, target acquisition, strike, decoy, EW","EO/IR turret, SAR, jammer, munitions"],
+   ["Agriculture","Crop health, spraying, seeding, yield mapping","Multispectral, spray tank"],
+   ["Survey & construction","Volumetrics, progress mapping, BIM","RGB + RTK, LiDAR"],
+   ["Infrastructure","Power line, pipeline, bridge, tower inspection","Zoom EO, thermal, corona camera"],
+   ["Public safety","Search & rescue, firefighting, crowd, traffic","Thermal, loudspeaker, searchlight"],
+   ["Logistics","Medical and e-commerce delivery","Parcel box, winch"],
+   ["Environment","Wildlife census, glacier, pollution, disaster","Hyperspectral, gas sensor"]]}
+];
+chipGroup("#axCtl",axes,(a)=>{
+  let h="<table class='t'><tr>"+a.h.map(x=>"<th>"+x+"</th>").join("")+"</tr>";
+  a.r.forEach(row=>{h+="<tr>"+row.map((c,i)=>"<td"+(i===0?" class='hl'":"")+">"+c+"</td>").join("")+"</tr>";});
+  $("#axBody").innerHTML=h+"</table>";
+},0);
+
+/* ---------- WP05 airframe comparator ---------- */
+const types={
+ "Fixed-wing":{lift:"Wing generating lift in forward flight",end:"1–20 h",spd:"50–150 km/h",lnch:"Hand, catapult, bungee or runway",pay:"Moderate, internal bay",pros:"Highest endurance and coverage per battery; fails gracefully — can glide",cons:"Cannot hover; needs open space to launch and recover; poor for vertical assets",use:"Large-area mapping, corridor survey, border patrol, agriculture at scale"},
+ "Single-rotor heli":{lift:"One large main rotor, tail rotor for anti-torque",end:"1–4 h (petrol variants longer)",spd:"60–150 km/h",lnch:"VTOL",pay:"High — long blades lift heavy loads efficiently",pros:"Best payload-to-size of the hovering types; can run on IC engines",cons:"Mechanically complex swashplate and gearbox; expensive; large exposed rotor is dangerous",use:"Agricultural spraying (Yamaha RMAX), naval rotary UAV, heavy LiDAR"},
+ "Multirotor":{lift:"3–8 fixed-pitch rotors, differential thrust",end:"15–45 min",spd:"30–70 km/h",lnch:"VTOL from any small clearing",pay:"Low–moderate, 10–30 % of MTOW",pros:"Hover and precise station-keeping; simple; cheap; safe near structures",cons:"Short endurance; energy-hungry; wind-sensitive; noisy",use:"Inspection, photography, small-area survey, delivery, indoor flight"},
+ "Hybrid VTOL":{lift:"Rotors for take-off, wing for cruise",end:"1–6 h",spd:"60–120 km/h",lnch:"VTOL, then transition to wing-borne flight",pay:"Moderate",pros:"Fixed-wing range without a runway; ideal for BVLOS linear missions",cons:"Carries dead weight in each phase; transition is the riskiest moment; costly",use:"Long pipeline and coastline surveys, maritime delivery, military tactical ISR"},
+ "Flapping-wing":{lift:"Oscillating wings — unsteady aerodynamics",end:"5–30 min",spd:"10–30 km/h",lnch:"Hand launch",pay:"Tiny — grams",pros:"Extremely small and quiet; visually inconspicuous; excellent at low Reynolds number",cons:"Immature, structurally fragile, very limited payload and control authority",use:"Covert micro-ISR, bio-inspired research, indoor sensing"},
+ "Lighter-than-air":{lift:"Buoyancy from helium",end:"Hours to weeks",spd:"20–50 km/h",lnch:"Vertical, needs a large handling crew",pay:"Large volume, low density",pros:"Enormous loiter time for very low power; quiet; benign failure",cons:"Huge and wind-vulnerable; slow; needs hangar and gas logistics",use:"Persistent surveillance aerostats, event coverage, communications relay"}
+};
+const tKeys=Object.keys(types); let tSel=["Fixed-wing","Multirotor"];
+function typeRender(){
+  $("#typeCmp").innerHTML=tSel.map(k=>{
+    const t=types[k];
+    return "<div class='panel' style='margin:0'><div class='panel-t'>"+k+"</div>"+
+      "<ul class='kl'>"+
+      "<li><b>Lift</b> "+t.lift+"</li><li><b>Endurance</b> "+t.end+"</li><li><b>Cruise</b> "+t.spd+"</li>"+
+      "<li><b>Launch</b> "+t.lnch+"</li><li><b>Payload</b> "+t.pay+"</li>"+
+      "<li><b>Strengths</b> "+t.pros+"</li><li><b>Weaknesses</b> "+t.cons+"</li><li><b>Used for</b> "+t.use+"</li></ul></div>";
+  }).join("");
+  $$("#typeCtl button").forEach(b=>b.classList.toggle("on",tSel.includes(b.textContent)));
+}
+(function(){const el=$("#typeCtl");
+ tKeys.forEach(k=>{const b=document.createElement("button");b.className="chip";b.textContent=k;
+  b.addEventListener("click",()=>{ if(tSel.includes(k)) return; tSel=[tSel[1],k]; typeRender(); }); el.appendChild(b);});
+ typeRender();})();
+
+/* ---------- WP06 multirotor builder ---------- */
+const frames={
+ "Tricopter (Y3)":{n:3,off:90,coax:1,yaw:"Servo-vectored",red:"None",eff:"High per motor",
+   d:"Three arms in a Y. Torque cannot be balanced with three props, so the rear motor sits on a servo that tilts it left and right to vector thrust for yaw. Efficient and distinctive, but the yaw servo is a single point of failure."},
+ "Quad +":{n:4,off:0,coax:1,yaw:"Torque differential",red:"None",eff:"Best of the quads",
+   d:"Motors sit directly forward, aft, left and right. One motor pair handles each axis, so the mixing is intuitive and roll/pitch response is crisp — but an arm sits in the camera's forward view."},
+ "Quad X":{n:4,off:45,coax:1,yaw:"Torque differential",red:"None",eff:"Best of the quads",
+   d:"The default civil layout. All four motors contribute to both roll and pitch, giving symmetric response and a clear forward field of view for the camera. Lose one motor and a quad cannot hold yaw — it descends."},
+ "Hexacopter (X6)":{n:6,off:30,coax:1,yaw:"Torque differential",red:"Survives 1 motor loss",eff:"Moderate",
+   d:"Six arms. If one motor fails the remaining five can still generate enough thrust and torque balance for a controlled landing, which is why hexacopters carry expensive payloads over people."},
+ "Y6 coaxial":{n:6,off:90,coax:2,yaw:"Torque differential",red:"Survives 1 motor loss",eff:"Lower — 10–15 % coaxial loss",
+   d:"Three arms, each carrying a motor above and below. Compact footprint with six-motor redundancy, but the lower prop works in the wash of the upper one and loses efficiency."},
+ "Octocopter (X8 flat)":{n:8,off:22.5,coax:1,yaw:"Torque differential",red:"Survives 2 motor losses",eff:"Moderate",
+   d:"Eight arms, maximum thrust and redundancy. Used for cinema rigs and heavy LiDAR. Heavier frame, more ESCs, more failure points, more current draw."},
+ "X8 coaxial":{n:8,off:45,coax:2,yaw:"Torque differential",red:"Survives 2 motor losses",eff:"Lower — coaxial loss",
+   d:"Four arms with stacked counter-rotating pairs. Keeps a quad's compact footprint while doubling thrust and adding redundancy — common on agricultural sprayers."}
+};
+const fKeys=Object.keys(frames); let fSel="Quad X", cmd="hover";
+const cmds=[["hover","Hover"],["roll","Roll right"],["pitch","Pitch forward"],["yaw","Yaw right"],["fail","Motor 1 fails"]];
+(function(){const el=$("#cmdCtl");
+ cmds.forEach(([k,l])=>{const b=document.createElement("button");b.className="chip mag"+(k==="hover"?" on":"");b.textContent=l;
+  b.addEventListener("click",()=>{cmd=k;$$("#cmdCtl button").forEach(x=>x.classList.remove("on"));b.classList.add("on");drawRotor();});
+  el.appendChild(b);});})();
+chipGroup("#frmCtl",fKeys.map(k=>({label:k})),(it)=>{fSel=it.label;drawRotor();},2);
+
+function drawRotor(){
+  const f=frames[fSel], svg=$("#rotorSvg"), cx=210, cy=165, R=110;
+  const arms=f.n/f.coax, out=[];
+  for(let a=0;a<arms;a++){
+    const ang=(f.off + a*360/arms)*Math.PI/180;
+    const x=cx+R*Math.sin(ang), y=cy-R*Math.cos(ang);
+    for(let c=0;c<f.coax;c++){
+      const idx=out.length;
+      out.push({x,y,ang,spin:(f.n===3 && f.coax===1) ? (a===2?"CW":(a===0?"CW":"CCW")) : ((idx%2===0)?"CW":"CCW"),
+        nx:(x-cx)/R, ny:(cy-y)/R, top:c===0, i:idx+1});
+    }
+  }
+  const K={hover:[0,0,0],roll:[.6,0,0],pitch:[0,.6,0],yaw:[0,0,.6],fail:[0,0,0]}[cmd];
+  out.forEach(m=>{
+    let t=1 - K[0]*m.nx - K[1]*m.ny + K[2]*(m.spin==="CCW"?1:-1);
+    if(cmd==="fail") t = (m.i===1)?0:1.18;
+    m.t=Math.max(0,Math.min(1.9,t));
+  });
+  let s='<rect width="420" height="340" fill="none"/>';
+  s+='<text x="210" y="24" text-anchor="middle" font-family="IBM Plex Mono,monospace" font-size="10" letter-spacing="2" fill="#4C5548">TOP VIEW · NOSE UP</text>';
+  s+='<path d="M210 40 l7 14 l-7 -4 l-7 4 Z" fill="#B3157E"/>';
+  out.filter(m=>m.top).forEach(m=>{ s+='<line x1="'+cx+'" y1="'+cy+'" x2="'+m.x+'" y2="'+m.y+'" stroke="#151B13" stroke-width="5" stroke-linecap="round" opacity=".55"/>'; });
+  s+='<rect x="'+(cx-24)+'" y="'+(cy-24)+'" width="48" height="48" rx="4" fill="#F6F7F0" stroke="#151B13" stroke-width="2"/>';
+  s+='<text x="'+cx+'" y="'+(cy+4)+'" text-anchor="middle" font-family="IBM Plex Mono,monospace" font-size="9" fill="#151B13">FC</text>';
+  out.forEach(m=>{
+    const r=18+m.t*10, col=m.spin==="CW"?"#B3157E":"#1E5F8C", op=.12+m.t*.30;
+    const off=m.top?0:9;
+    s+='<circle cx="'+(m.x+off)+'" cy="'+(m.y+off)+'" r="'+r+'" fill="'+col+'" opacity="'+op.toFixed(2)+'"/>';
+    s+='<g class="prop'+(m.spin==="CCW"?" ccw":"")+'" style="animation-duration:'+(m.t>0?(0.75/Math.max(.35,m.t)).toFixed(2):"0")+'s;'+(m.t===0?"animation:none;":"")+'">'+
+       '<ellipse cx="'+(m.x+off)+'" cy="'+(m.y+off)+'" rx="'+r+'" ry="3.2" fill="'+col+'" opacity=".9"/></g>';
+    s+='<circle cx="'+(m.x+off)+'" cy="'+(m.y+off)+'" r="6" fill="#F6F7F0" stroke="#151B13" stroke-width="1.6"/>';
+    s+='<text x="'+(m.x+off)+'" y="'+(m.y+off+3)+'" text-anchor="middle" font-family="IBM Plex Mono,monospace" font-size="7.5" fill="#151B13">'+m.i+'</text>';
+    const lx=m.x+off+(m.nx>=0?1:-1)*(r+16), ly=m.y+off-(m.ny>=0?1:-1)*4;
+    s+='<text x="'+lx+'" y="'+ly+'" text-anchor="middle" font-family="IBM Plex Mono,monospace" font-size="8" fill="'+col+'">'+m.spin+' '+Math.round(m.t*100)+'%</text>';
+  });
+  s+='<g font-family="IBM Plex Mono,monospace" font-size="8.5" fill="#4C5548"><text x="14" y="322" fill="#B3157E">■ CW = clockwise</text><text x="128" y="322" fill="#1E5F8C">■ CCW = counter-clockwise</text><text x="14" y="334">disc size = commanded thrust · M1…Mn = motor number</text></g>';
+  svg.innerHTML=s;
+  $("#mMot").textContent=f.n; $("#mYaw").textContent=f.yaw; $("#mRed").textContent=f.red; $("#mEff").textContent=f.eff;
+  const expl={hover:"All motors equal. Total thrust = weight, net torque = 0, aircraft holds position.",
+    roll:"Left-side motors speed up, right-side slow down. The lift vector tilts right, the aircraft banks and slides right.",
+    pitch:"Rear motors speed up, front motors slow down. The nose drops and the tilted thrust vector pushes the aircraft forward.",
+    yaw:"CCW motors speed up, CW motors slow down. Total thrust is unchanged so altitude holds, but the torque imbalance rotates the airframe to the right.",
+    fail:"Motor 1 has stopped and the rest are saturated trying to compensate. A quad or tricopter cannot hold yaw here and will spin down; a hexa, Y6, octo or X8 can still land under control."}[cmd];
+  $("#frmDet").innerHTML="<h4>"+fSel+"</h4><div class='spec'>"+f.n+" motors · "+(f.coax>1?"coaxial stacked":"planar")+" · "+f.n/f.coax+" arms</div><p>"+f.d+"</p><p style='color:var(--ink2)'><b>Now commanding:</b> "+expl+"</p>";
+}
+drawRotor();
+
+/* ---------- WP07 components ---------- */
+const comps={
+ power:[
+  ["LiPo battery","3S–12S · 1 500–22 000 mAh · 15–75 C","Lithium-polymer pack — high energy density and very high discharge current. Capacity in mAh sets endurance; the C-rating sets how much current it can safely deliver (max A = capacity Ah × C). Nominal 3.7 V per cell, 4.2 V full, 3.5 V is the practical floor. Never discharge below ~20 %."],
+  ["Power module","Voltage + current sensor, 5 V BEC","Sits between battery and PDB. Measures pack voltage and current so the autopilot can integrate consumed mAh and drive the low-battery failsafe. Usually also supplies clean 5 V to the flight controller."],
+  ["PDB","Power distribution board","Splits the single battery lead into one branch per ESC, often with an integrated 5 V/12 V BEC and capacitor for noise suppression."],
+  ["ESC","Electronic speed controller · DShot/PWM · 20–80 A","Converts DC from the battery into the three-phase AC waveform a brushless motor needs, at the commutation rate the flight controller commands. Modern ESCs use digital protocols (DShot) and can report RPM, current and temperature back as telemetry."],
+  ["BLDC motor","Outrunner · KV rating · 2205 / 3508 sizes","Brushless DC motor. KV = unloaded RPM per volt: high KV with a small prop for racing, low KV with a large prop for lifting. Numbers like 2205 mean 22 mm stator diameter, 5 mm stator height."],
+  ["Propeller","Diameter × pitch, e.g. 5×4.5 or 15×5","Converts shaft torque into thrust. Larger diameter is more efficient but slower to change speed; higher pitch gives more forward speed for the same RPM. Must be balanced or it will corrupt IMU data."]
+ ],
+ control:[
+  ["Flight controller","STM32/H7 MCU · Pixhawk, Betaflight, Ardupilot","The brain. Runs the sensor fusion filter (EKF), the attitude and position control loops, mission logic and failsafes, then outputs a motor command to each ESC — typically at 400–8 000 Hz."],
+  ["IMU","3-axis gyroscope + 3-axis accelerometer","MEMS inertial measurement unit. The gyro gives angular rate for the fast inner loop; the accelerometer gives the gravity vector to correct long-term gyro drift. Mounted on damping foam to reject prop vibration."],
+  ["Magnetometer","3-axis compass","Gives absolute heading, since gyros drift in yaw and GPS only knows heading while moving. Extremely sensitive to current-carrying wires and motors — hence the mast on many airframes and mandatory calibration."],
+  ["Barometer","MS5611-class pressure sensor","Measures static pressure to derive altitude with centimetre resolution but metre-level absolute drift. Must be foam-shielded from prop wash and sunlight."],
+  ["GNSS receiver","GPS + GLONASS + Galileo + NavIC; RTK optional","Gives absolute position, ground speed and time. Watch the satellite count and HDOP before arming. RTK versions reach centimetre accuracy using base-station corrections."],
+  ["Rangefinder / flow","Lidar, sonar, optical flow camera","Downward sensors for precise low-altitude height and, with optical flow, position hold indoors where GNSS is unavailable."],
+  ["RC receiver","2.4 GHz · SBUS, CRSF, ELRS","Receives the pilot's stick channels from the transmitter and passes them to the flight controller on a single serial line. Its RSSI drives the RC-loss failsafe."],
+  ["Telemetry radio","433/868/915 MHz · MAVLink","Bidirectional data link to the ground station for live parameters, mission upload and commands. Lower frequency than the video link so it carries further."]
+ ],
+ payload:[
+  ["Gimbal","2- or 3-axis brushless stabiliser","Isolates the camera from airframe motion using its own IMU and motors, so video stays level and mapping images stay nadir."],
+  ["Payload camera","RGB / thermal / multispectral","The mission sensor. Records to on-board storage at full resolution while a compressed version is streamed down."],
+  ["FPV camera + VTX","5.8 GHz analogue or digital","Low-latency pilot's-eye view. Analogue degrades gracefully into static; digital gives HD but cliff-edges when the link fails."],
+  ["Companion computer","Raspberry Pi, Jetson, Khadas","A Linux computer alongside the autopilot for computer vision, object detection, SLAM and 4G/5G connectivity — anything too heavy for the flight controller MCU."],
+  ["Storage","microSD / NVMe","Holds flight logs and full-resolution imagery. Log analysis after a crash is the standard diagnostic tool."],
+  ["Safety hardware","Buzzer, LEDs, arming switch, kill switch, parachute","Status indication and last-resort intervention. A ballistic parachute is increasingly required for flights over people."]
+ ]
+};
+function fillLane(id,arr,kind){
+  const el=$(id); el.innerHTML="";
+  arr.forEach((c,i)=>{
+    if(i&&kind==="power") el.insertAdjacentHTML("beforeend",'<span class="arrow">→</span>');
+    const b=document.createElement("button"); b.className="blk"; b.textContent=c[0];
+    b.addEventListener("click",()=>{
+      $$(".blk").forEach(x=>x.classList.remove("on")); b.classList.add("on");
+      $("#compDet").innerHTML="<h4>"+c[0]+"</h4><div class='spec'>"+c[1]+"</div><p>"+c[2]+"</p>";
+    });
+    el.appendChild(b);
+  });
+}
+fillLane("#lnPower",comps.power,"power"); fillLane("#lnControl",comps.control); fillLane("#lnPayload",comps.payload);
+$("#compDet").innerHTML="<h4>Follow the energy</h4><div class='spec'>battery → power module → PDB → ESC → motor → propeller</div><p>The power lane is a straight chain: chemical energy becomes DC current, the ESC turns DC into three-phase AC, the motor turns that into shaft torque, and the propeller turns torque into thrust. The control lane is a loop instead of a chain — sensors in, estimate, control law, motor command, and the aircraft's response feeds back into the sensors. Click any block for detail.</p>";
+
+/* ---------- WP08 payloads (feeds the WP07 calculator) ---------- */
+const payloads=[
+ {n:"RGB camera 20 MP",m:120,p:5,d:0.02,t:"Visible imagery, 1\" sensor, mechanical shutter. Backbone of photogrammetry and inspection."},
+ {n:"Thermal IR",m:110,p:4,d:0.01,t:"Uncooled microbolometer, 640×512, 8–14 µm. Detects heat: solar-panel hotspots, roof leaks, people at night, livestock, fire fronts."},
+ {n:"Multispectral",m:180,p:10,d:0.05,t:"4–6 discrete bands including red-edge and NIR. Produces NDVI and other vegetation indices for crop stress mapping."},
+ {n:"Hyperspectral",m:800,p:35,d:2.5,t:"Hundreds of contiguous narrow bands. Mineral identification, water quality, precise species discrimination. Heavy, power-hungry, records on board."},
+ {n:"LiDAR",m:900,p:40,d:6,t:"Pulsed laser scanner. Direct 3D point clouds, penetrates vegetation canopy to give bare-earth terrain — impossible with photogrammetry alone."},
+ {n:"3-axis gimbal",m:250,p:8,d:0,t:"Stabilises whatever sensor it carries. Mass counted separately from the sensor."},
+ {n:"Gas / air quality",m:150,p:6,d:0.005,t:"Electrochemical or PID sensors for CH₄, CO, SO₂, PM2.5. Leak detection and stack emission monitoring."},
+ {n:"Spray tank 5 L",m:5500,p:60,d:0,t:"Consumable agricultural payload with pump and nozzles. Mass falls in flight, so trim and endurance change continuously."},
+ {n:"Delivery box 2 kg",m:2000,p:2,d:0,t:"Insulated parcel or winch-lowered package for medical and e-commerce logistics."},
+ {n:"Comms relay",m:300,p:20,d:0,t:"Airborne radio repeater that extends a ground network's range by exploiting altitude and line of sight."},
+ {n:"Searchlight + speaker",m:400,p:45,d:0,t:"Public-safety payload for night search, crowd instruction and disaster response."}
+];
+let payOn=new Set();
+(function(){const el=$("#payCtl");
+ payloads.forEach((p,i)=>{const b=document.createElement("button");b.className="chip mag";b.textContent=p.n;
+  b.addEventListener("click",()=>{ payOn.has(i)?payOn.delete(i):payOn.add(i); b.classList.toggle("on"); payRender(); });
+  el.appendChild(b);});})();
+function payRender(){
+  let m=0,p=0,d=0,last=null;
+  payOn.forEach(i=>{m+=payloads[i].m;p+=payloads[i].p;d+=payloads[i].d;last=payloads[i];});
+  $("#pMass").innerHTML=(m>=1000?fmt(m/1000,2)+" <s>kg</s>":m+" <s>g</s>");
+  $("#pPow").innerHTML=p+" <s>W</s>";
+  $("#pData").innerHTML=fmt(d,2)+" <s>Mbps</s>";
+  $("#payDet").innerHTML = last
+    ? "<h4>"+last.n+"</h4><div class='spec'>"+last.m+" g · "+last.p+" W · "+last.d+" Mbps</div><p>"+last.t+"</p>"
+    : "Nothing loaded. Pick a sensor to see what it measures and what it costs you.";
+  $("#cPay").value=m; calcRender();
+}
+
+/* ---------- WP07 endurance calculator ---------- */
+function calcRender(){
+  const dry=+$("#cDry").value||0, cap=+$("#cCap").value||0, S=+$("#cS").value||1,
+        bat=+$("#cBat").value||0, pay=+$("#cPay").value||0,
+        eff=+$("#cEff").value, thr=+$("#cThr").value, n=frames[fSel].n;
+  $("#cEffO").textContent=eff+" g/W"; $("#cThrO").textContent=thr+" g";
+  const auw=dry+bat+pay, V=S*3.7, P=auw/eff, I=P/V, t=(cap/1000*0.8*60)/I, tw=(n*thr)/auw, C=I/(cap/1000);
+  $("#oAUW").innerHTML=fmt(auw/1000,2)+" <s>kg</s>";
+  $("#oPow").innerHTML=Math.round(P)+" <s>W</s>";
+  $("#oCur").innerHTML=fmt(I,1)+" <s>A</s>";
+  $("#oCr").innerHTML=fmt(C,1)+" <s>C min</s>";
+  $("#oEnd").innerHTML=fmt(t,1)+" <s>min</s>";
+  $("#oTW").innerHTML=fmt(tw,2)+" <s>: 1</s>";
+  $("#oEnd").parentElement.className="read "+(t<8?"bad":t<15?"warn":"good");
+  $("#oTW").parentElement.className="read "+(tw<1.5?"bad":tw<2?"warn":"good");
+  let v="";
+  if(tw<1.5) v="<b style='color:var(--magenta)'>Under-powered.</b> Below 1.5:1 there is almost no thrust margin left for control — the aircraft cannot arrest a descent or fight a gust. Fit larger props/motors or shed payload.";
+  else if(tw<2) v="<b style='color:var(--amber)'>Marginal.</b> Flyable but sluggish. 2:1 is the accepted minimum for stable camera work; 3–4:1 for agile or windy flying.";
+  else if(tw>5) v="Very high thrust margin — great agility, but hover throttle sits low in the ESC's range, which hurts efficiency and resolution of control.";
+  else v="Healthy thrust margin. Hover throttle sits near mid-stick, which is where control response is best.";
+  $("#calcDet").innerHTML="<h4>Reading the numbers</h4><p>"+v+"</p><p style='color:var(--ink2)'>Frame from WP 06: <b>"+fSel+"</b> ("+n+" motors). Payload mass is driven by the payload bay in WP 08. Endurance here is <em>hover</em> endurance with 80 % usable capacity — forward flight, wind, and cold weather all reduce it further.</p>";
+}
+["cDry","cCap","cS","cBat","cPay","cEff","cThr"].forEach(id=>$("#"+id).addEventListener("input",calcRender));
+calcRender();
+
+/* ---------- WP09 telemetry sim ---------- */
+let T={run:true,t:0,alt:42,spd:6.2,batt:15.9,mah:1420,sats:14,rssi:92,roll:0,pitch:0,yaw:117,vib:12,mode:"AUTO"};
+let faults={gps:false,rc:false,batt:false,vib:false};
+function hzn(){
+  const p=T.pitch*2.2, r=T.roll;
+  $("#hznSvg").innerHTML=
+   '<g transform="rotate('+(-r)+' 100 100)"><rect x="-90" y="'+(-100+p)+'" width="380" height="200" fill="#2C6FA0"/>'+
+   '<rect x="-90" y="'+(100+p)+'" width="380" height="220" fill="#6B5B34"/>'+
+   '<line x1="-90" y1="'+(100+p)+'" x2="290" y2="'+(100+p)+'" stroke="#F6F7F0" stroke-width="2"/>'+
+   '<g stroke="#F6F7F0" stroke-width="1" opacity=".8">'+
+   [-20,-10,10,20].map(d=>'<line x1="80" y1="'+(100+p-d*2.2)+'" x2="120" y2="'+(100+p-d*2.2)+'"/>').join("")+'</g></g>'+
+   '<g stroke="#B3157E" stroke-width="2.4" fill="none"><path d="M55 100 L85 100 M115 100 L145 100"/><circle cx="100" cy="100" r="3"/></g>'+
+   '<text x="100" y="188" text-anchor="middle" font-family="IBM Plex Mono,monospace" font-size="10" fill="#F6F7F0">'+T.mode+'</text>'+
+   '<text x="100" y="18" text-anchor="middle" font-family="IBM Plex Mono,monospace" font-size="9" fill="#F6F7F0">HDG '+String(Math.round(T.yaw)).padStart(3,"0")+'</text>';
+}
+function tick(){
+  if(T.run){
+    T.t++;
+    const w=x=>(Math.random()-0.5)*x;
+    T.roll=Math.max(-30,Math.min(30,T.roll+w(3))); T.pitch=Math.max(-20,Math.min(20,T.pitch+w(2)));
+    T.yaw=(T.yaw+w(2)+360)%360; T.alt=Math.max(0,T.alt+w(.6)); T.spd=Math.max(0,T.spd+w(.5));
+    T.mah+=Math.round(9+Math.random()*4); T.batt=Math.max(12.4,16.8-T.mah/5200*4.2);
+    T.vib=faults.vib?38+w(9):11+w(4);
+    T.sats=faults.gps?Math.max(0,Math.round(3+w(3))):Math.round(14+w(2));
+    T.rssi=faults.rc?Math.max(0,Math.round(8+w(8))):Math.round(92+w(6));
+    if(faults.batt){T.mah=Math.max(T.mah,4700);T.batt=13.6+w(.2);}
+    T.mode = faults.rc?"RTL (RC LOSS)" : faults.batt?"LAND (LOW BATT)" : faults.gps?"ALT HOLD (NO GPS)" : "AUTO";
+  }
+  const rows=[["Flight mode",T.mode],["Altitude AGL",fmt(T.alt,1)+" m"],["Ground speed",fmt(T.spd,1)+" m/s"],
+   ["Attitude","R "+fmt(T.roll,0)+"° P "+fmt(T.pitch,0)+"°"],["Heading",Math.round(T.yaw)+"°"],
+   ["Battery",fmt(T.batt,2)+" V"],["Consumed",T.mah+" mAh"],["GNSS sats",T.sats+(T.sats<6?" · NO FIX":" · 3D FIX")],
+   ["Link RSSI",T.rssi+" %"],["Vibration",fmt(T.vib,0)+" m/s²"],["Home distance",Math.round(120+T.t%400)+" m"],
+   ["Uplink latency",(faults.rc?"—":Math.round(45+Math.random()*25)+" ms")]];
+  $("#tape").innerHTML=rows.map(r=>"<div><s>"+r[0]+"</s><b>"+r[1]+"</b></div>").join("");
+  const al=[];
+  if(T.sats<6) al.push(["GPS FIX LOST → EKF switched to barometer + optical flow; position hold unavailable, autopilot reverts to altitude hold.",""]);
+  if(T.rssi<20) al.push(["RC LINK LOST → failsafe triggered: climb to safe altitude and Return-To-Launch on the last known home position.",""]);
+  if(T.batt<14.0) al.push(["BATTERY CRITICAL → land-now failsafe. Below 3.5 V per cell the pack sags under load and thrust collapses.",""]);
+  if(T.vib>28) al.push(["HIGH VIBRATION → suspect damaged or unbalanced prop. Accelerometer data is being corrupted; altitude estimate will drift.","amb"]);
+  if(!al.length) al.push(["ALL SYSTEMS NOMINAL · telemetry heartbeat 1 Hz · MAVLink link healthy","amb"]);
+  $("#alerts").innerHTML=al.map(a=>"<div class='alert "+a[1]+"'>"+a[0]+"</div>").join("");
+  hzn();
+}
+setInterval(tick,700); tick();
+$("#tRun").addEventListener("click",e=>{T.run=!T.run;e.target.textContent=T.run?"Pause telemetry":"Resume telemetry";e.target.classList.toggle("on",T.run);});
+$$("[data-fault]").forEach(b=>b.addEventListener("click",()=>{
+  const f=b.dataset.fault;
+  if(f==="clear"){Object.keys(faults).forEach(k=>faults[k]=false);T.mah=1420;$$("[data-fault]").forEach(x=>x.classList.remove("on"));}
+  else{faults[f]=!faults[f];b.classList.toggle("on",faults[f]);}
+  tick();
+}));
+
+/* ---------- WP10 survey planner ---------- */
+function gsdRender(){
+  const Sw=+$("#gSw").value, Iw=+$("#gIw").value, Ih=+$("#gIh").value, F=+$("#gF").value,
+        H=+$("#gH").value, A=+$("#gA").value, fo=+$("#gFo").value, so=+$("#gSo").value;
+  $("#gHO").textContent=H+" m"; $("#gFoO").textContent=fo+" %"; $("#gSoO").textContent=so+" %";
+  const gsd=(Sw*H*100)/(F*Iw);                       // cm/px
+  const fw=gsd*Iw/100, fh=gsd*Ih/100;                // m footprint
+  const shotSpace=fh*(1-fo/100), lineSpace=fw*(1-so/100);
+  const side=Math.sqrt(A*10000);
+  const lines=Math.max(1,Math.ceil(side/lineSpace)), perLine=Math.max(1,Math.ceil(side/shotSpace));
+  const total=lines*perLine, dist=lines*side, time=dist/6/60+lines*0.15;
+  $("#oGsd").innerHTML=fmt(gsd,2)+" <s>cm/px</s>";
+  $("#oFp").innerHTML=fmt(fw,0)+"×"+fmt(fh,0)+" <s>m</s>";
+  $("#oLs").innerHTML=fmt(lineSpace,1)+" <s>m</s>";
+  $("#oShot").innerHTML=perLine+" <s>/ line</s>";
+  $("#oImg").innerHTML=total.toLocaleString();
+  $("#oData").innerHTML=fmt(total*11/1024,1)+" <s>GB</s>";
+  $("#oLines").innerHTML=lines;
+  $("#oTime").innerHTML=fmt(time,0)+" <s>min</s>";
+  $("#oTime").parentElement.className="read "+(time>25?"bad":time>15?"warn":"good");
+  let v;
+  if(gsd<1.5) v="Very fine detail — good enough to read hairline cracks and count individual plants, but the image count and processing time climb steeply.";
+  else if(gsd<4) v="The standard band for construction volumetrics, cadastral mapping and crop scouting.";
+  else v="Coarse. Fine for broad land-cover and rough progress checks, not for defect detection.";
+  const packs=Math.ceil(time/22);
+  $("#gsdDet").innerHTML="<h4>Mission verdict</h4><p>"+v+" Rule of thumb: measurable accuracy on the final map is about <b>2–3 × GSD</b> horizontally with good GCPs.</p><p style='color:var(--ink2)'>At roughly 22 usable minutes per battery this mission needs about <b>"+packs+" battery pack"+(packs>1?"s":"")+"</b>. Raising altitude cuts image count quadratically but coarsens GSD linearly — that is the single biggest lever you have.</p>";
+
+  /* redraw Fig 1.9 */
+  const svg=$("#surveySvg"); if(!svg) return;
+  const half=Math.min(170,40+H*1.15), apexY=66, gY=250;
+  $("#sCone",svg).setAttribute("d","M210 "+apexY+" L"+(210-half)+" "+gY+" L"+(210+half)+" "+gY+" Z");
+  const cone2=$("#sCone2",svg);
+  if(cone2) cone2.setAttribute("d","M210 "+apexY+" L"+(210-half)+" "+gY+" M210 "+apexY+" L"+(210+half)+" "+gY);
+  const fl=$("line[y1='264']",svg);
+  if(fl){fl.setAttribute("x1",210-half);fl.setAttribute("x2",210+half);}
+  $("#sAlt",svg).textContent="H = "+H+" m";
+  $("#sFoot",svg).textContent="footprint "+fmt(fw,0)+" × "+fmt(fh,0)+" m";
+  $("#sGsd",svg).textContent="1 pixel = "+fmt(gsd,2)+" cm on the ground (GSD)";
+
+  const W=118, x0=520, y0=44, ox=W*(1-so/100), oy=(W*Ih/Iw)*(1-fo/100), Hh=W*Ih/Iw;
+  let g="";
+  g+='<line x1="'+x0+'" y1="'+(y0-14)+'" x2="'+x0+'" y2="240" stroke="#151B13" stroke-width="1" stroke-dasharray="3 3" opacity=".5"/>';
+  g+='<line x1="'+(x0+ox)+'" y1="'+(y0-14)+'" x2="'+(x0+ox)+'" y2="240" stroke="#151B13" stroke-width="1" stroke-dasharray="3 3" opacity=".5"/>';
+  for(let c=0;c<2;c++) for(let r=0;r<4;r++){
+    const x=x0+c*ox, y=y0+r*Math.max(9,oy);
+    g+='<rect x="'+x+'" y="'+y+'" width="'+W+'" height="'+Hh+'" fill="'+(c?"#D98200":"#1E5F8C")+'" fill-opacity=".13" stroke="'+(c?"#D98200":"#1E5F8C")+'" stroke-width="1.1"/>';
+    g+='<circle cx="'+(x+W/2)+'" cy="'+(y+Hh/2)+'" r="2.2" fill="'+(c?"#D98200":"#1E5F8C")+'"/>';
+  }
+  g+='<line x1="'+x0+'" y1="262" x2="'+(x0+ox)+'" y2="262" stroke="#B3157E" stroke-width="1.4"/>';
+  g+='<text x="'+(x0+ox/2)+'" y="278" text-anchor="middle" fill="#B3157E" font-size="9.5">line spacing '+fmt(lineSpace,0)+' m</text>';
+  g+='<text x="'+(x0+W+16)+'" y="'+(y0+8)+'" fill="#1E5F8C" font-size="9.5">front overlap '+fo+' %</text>';
+  g+='<text x="'+(x0+W+16)+'" y="'+(y0+22)+'" font-size="9" fill="#4C5548">shot every '+fmt(shotSpace,0)+' m</text>';
+  g+='<text x="'+x0+'" y="'+(y0-20)+'" fill="#D98200" font-size="9.5">side overlap '+so+' % between flight lines</text>';
+  $("#sPlan",svg).innerHTML=g;
+}
+["gSw","gIw","gIh","gF","gA","gH","gFo","gSo"].forEach(id=>$("#"+id).addEventListener("input",gsdRender));
+gsdRender();
+
+const pipe=[
+ {label:"1 · Plan",d:"Define the deliverable and its accuracy, pick GSD, derive altitude, choose the pattern and overlaps, check airspace and weather, and confirm the battery plan. Place and survey ground control points if absolute accuracy matters."},
+ {label:"2 · Fly & capture",d:"Autonomous flight along the plan with distance-triggered capture. Each frame is geotagged with GNSS position and IMU attitude at shutter time. RTK corrections stream in live, or raw observables are logged for PPK later."},
+ {label:"3 · Offload",d:"Cards are copied to a laptop or NAS, checksummed, and backed up before anything is deleted. Sortie logs, flight logs and base-station files travel with the images — losing the base file loses the accuracy."},
+ {label:"4 · Process",d:"Structure-from-Motion photogrammetry: feature detection and matching, bundle adjustment to solve every camera pose, dense matching to a point cloud. LiDAR takes a different path — trajectory reconstruction, then point-cloud georeferencing and strip adjustment."},
+ {label:"5 · Products",d:"Orthomosaic (a single geometrically corrected image), DSM (surface including trees and buildings), DTM (bare earth), 3D mesh, contours, and classified point clouds."},
+ {label:"6 · Analyse",d:"Volumetrics for stockpiles and cut/fill, NDVI and vegetation indices, change detection between epochs, defect annotation, thermal anomaly detection, and export to GIS or BIM."},
+ {label:"7 · Deliver & retain",d:"Publish to a web viewer or GIS, record achieved accuracy against independent checkpoints, and archive raws under the data-retention and privacy policy — imagery of people and property is regulated personal data in many jurisdictions."}
+];
+chipGroup("#pipeCtl",pipe,(it)=>{ $("#pipeDet").innerHTML="<h4>"+it.label+"</h4><p>"+it.d+"</p>"; },0);
+
+/* ---------- WP11 challenge cards ---------- */
+const chall=[
+ {g:"Mobility & topology",t:"Extreme node mobility",p:"UAVs move in three dimensions at tens of metres per second, so the neighbour set changes constantly and any route computed a few seconds ago may already be invalid.",f:"Predictive, position-aware routing (GPSR and geographic forwarding) that uses velocity vectors instead of stale routing tables; clustering with mobile cluster heads."},
+ {g:"Mobility & topology",t:"Frequent network partitioning",p:"Sparse deployment means the swarm can split into disconnected islands with no path between them at all.",f:"Delay/disruption-tolerant networking — store-carry-forward, where a UAV physically ferries data until it meets a peer; dedicated relay UAVs positioned to bridge gaps."},
+ {g:"Link & spectrum",t:"Short-lived, intermittent links",p:"Link lifetime between two fast-moving aircraft can be a few seconds, so connection setup, handshakes and retransmissions may cost more than the data transfer itself.",f:"Lightweight MAC and connectionless transport; directional/beam-steered antennas to extend link duration; multi-path redundancy."},
+ {g:"Link & spectrum",t:"Bandwidth & spectrum scarcity",p:"Live HD video, LiDAR and multiple aircraft all compete for unlicensed ISM bands that are already crowded and interference-prone.",f:"On-board compression and edge processing so only results are transmitted; cognitive/dynamic spectrum access; licensed cellular (LTE/5G) links for BVLOS."},
+ {g:"Link & spectrum",t:"Antenna & propagation limits",p:"Small aircraft can only carry small, low-gain antennas, and airframe attitude changes swing the radiation pattern; banking hard can drop the link.",f:"Diversity antennas on multiple faces, circular polarisation, adaptive power control, and altitude-exploiting line-of-sight geometry."},
+ {g:"Energy",t:"Severe energy constraint",p:"The same battery must fly the aircraft and power radios, sensors and computation. Every watt spent on communication is endurance removed from the mission.",f:"Energy-aware routing that avoids draining any one node; duty-cycled radios; trajectory planning that shortens transmission distance; battery swap or docking stations."},
+ {g:"Routing & protocol",t:"Routing protocol mismatch",p:"Proactive protocols (OLSR, DSDV) waste bandwidth flooding updates that expire immediately; reactive protocols (AODV, DSR) pay a discovery delay that real-time control cannot absorb.",f:"Hybrid and geographic protocols designed for FANETs, plus cross-layer designs that share position and mobility state between layers."},
+ {g:"Routing & protocol",t:"Scalability & swarm coordination",p:"Coordination overhead grows super-linearly with swarm size; consensus, task allocation and collision avoidance all compete for the same link.",f:"Hierarchical clustering, distributed consensus with local-only communication, and bio-inspired flocking rules that need only neighbour state."},
+ {g:"Security & privacy",t:"Jamming & GNSS spoofing",p:"The control link can be jammed and GNSS is unauthenticated on civil frequencies, so a forged signal can walk an aircraft off course without the pilot noticing.",f:"Frequency hopping and spread spectrum, multi-constellation receivers, inertial and visual odometry cross-checks, and spoofing detection from signal-power anomalies."},
+ {g:"Security & privacy",t:"Eavesdropping & hijacking",p:"Many hobby and even commercial links carry unencrypted telemetry and video, allowing interception, replay attacks or full command injection.",f:"Authenticated, encrypted C2 (MAVLink 2 signing, AES), secure boot, hardware key storage, and intrusion detection on the autopilot."},
+ {g:"Security & privacy",t:"Privacy & data protection",p:"Aerial imagery routinely captures people and private property, and the resulting datasets are personal data under most privacy law.",f:"Geofenced capture, on-board face and plate blurring, clear retention and access policies, and published flight notices."},
+ {g:"Safety & regulation",t:"Detect-and-avoid, airspace integration",p:"UAVs must share airspace with manned aircraft and each other, but have no pilot's eyes and limited payload for radar or transponders.",f:"ADS-B in/out, Remote ID broadcast, lightweight optical and acoustic DAA sensors, and UTM services that deconflict flight plans before take-off."},
+ {g:"Safety & regulation",t:"Regulation & standards fragmentation",p:"Rules differ by country and change fast; BVLOS, flights over people and swarms need bespoke approval, and there is no single interoperable networking standard.",f:"Certified airframes and parachutes, standardised interfaces (MAVLink, ASTM Remote ID), operational risk assessment frameworks such as SORA."},
+ {g:"Safety & regulation",t:"Weather & environment",p:"Wind gusts, rain, temperature extremes and electromagnetic interference near power lines all degrade both flight and link performance.",f:"Weather-gated go/no-go criteria, IP-rated airframes, wind-limit envelopes tied to thrust margin, and shielded avionics."}
+];
+$("#chCards").innerHTML=chall.map((c,i)=>
+ "<div class='card' data-i='"+i+"'><div class='tag'>"+c.g+"</div><h4>"+c.t+"</h4><p>"+c.p+"</p><div class='fix'><b style=\"font-family:var(--disp);letter-spacing:.06em;text-transform:uppercase;color:var(--blue)\">Mitigation</b><br>"+c.f+"</div></div>").join("");
+$$("#chCards .card").forEach(c=>c.addEventListener("click",()=>c.classList.toggle("open")));
+
+/* ---------- WP12 quiz ---------- */
+const qs=[
+ {q:"Which of these is NOT a component of a UAS?",o:["Ground control station","Data link","Airport control tower","Payload"],a:2,e:"A UAS comprises the air vehicle, GCS, data link, payload, launch/recovery equipment and the human element. The control tower belongs to the wider airspace system, not the UAS."},
+ {q:"Under India's Drone Rules 2021, a 1.8 kg drone falls in which category?",o:["Nano","Micro","Small","Medium"],a:1,e:"Micro covers greater than 250 g up to 2 kg. Small begins above 2 kg."},
+ {q:"In a quadcopter, yaw to the right is produced by:",o:["Increasing all four motors","Tilting a servo on the tail motor","Speeding up the CCW props and slowing the CW props","Deflecting a rudder"],a:2,e:"Yaw comes from a deliberate torque imbalance. Total thrust stays roughly constant so altitude is preserved. The servo answer describes a tricopter."},
+ {q:"The ESC's function is to:",o:["Distribute battery power to all boards","Convert DC into three-phase AC to commutate a brushless motor","Fuse the sensor data into an attitude estimate","Stabilise the camera"],a:1,e:"The ESC commutates the BLDC motor. Power splitting is the PDB, sensor fusion is the flight controller's EKF, and stabilisation is the gimbal."},
+ {q:"Which sensor gives the UAV its absolute heading?",o:["Barometer","Accelerometer","Magnetometer","Gyroscope"],a:2,e:"The magnetometer senses the Earth's field. Gyros drift in yaw and accelerometers only sense the gravity vector, which says nothing about heading."},
+ {q:"MALE stands for:",o:["Multi-Axis Low Endurance","Medium Altitude Long Endurance","Manned Aerial Launch Equipment","Maximum Allowable Load Envelope"],a:1,e:"MALE: roughly 10 000–30 000 ft, 24–48 h. Compare with HALE above 30 000 ft."},
+ {q:"Doubling the flight altitude of a mapping mission will:",o:["Halve the GSD","Double the GSD","Leave GSD unchanged","Quadruple the GSD"],a:1,e:"GSD is directly proportional to altitude. Doubling the height doubles the ground distance each pixel covers — coarser detail, but far fewer images."},
+ {q:"The main reason a hexacopter is chosen over a quadcopter for expensive payloads is:",o:["Higher top speed","Lower noise","Redundancy after a motor failure","Longer endurance"],a:2,e:"With six motors the aircraft retains enough thrust and torque authority to land under control after one motor fails. A quad cannot hold yaw with three motors."},
+ {q:"Which is the defining difference between a FANET and a MANET?",o:["FANETs use wired links","FANET nodes move very fast in three dimensions and are sparsely distributed","MANETs have no routing protocol","FANETs never use GPS"],a:1,e:"Very high 3D mobility plus sparse node distribution is what breaks conventional MANET routing when applied to flying nodes."},
+ {q:"In telemetry, MAVLink is:",o:["A video compression codec","A GNSS augmentation service","A lightweight messaging protocol between aircraft and ground station","A brand of flight controller"],a:2,e:"MAVLink carries heartbeat, attitude, position, battery and command messages, typically over a 433/915 MHz radio or over IP."},
+ {q:"A thrust-to-weight ratio of 1.2 : 1 means the aircraft is:",o:["Ideal for camera work","Dangerously under-powered with almost no control margin","Over-powered and inefficient","Unable to leave the ground"],a:1,e:"It can just lift off, but with only 20 % margin there is nothing left to arrest a descent or counter a gust. Two-to-one is the practical minimum."},
+ {q:"RTK and PPK are both used to:",o:["Compress imagery in flight","Achieve centimetre-level positional accuracy","Improve battery endurance","Encrypt the control link"],a:1,e:"Both apply base-station corrections to GNSS — RTK in real time over a radio link, PPK after landing during processing."}
+];
+let score=0, answered=new Set();
+function quizRender(){
+  $("#quiz").innerHTML=qs.map((q,i)=>
+   "<div class='q' data-q='"+i+"'><p class='stem'>"+(i+1)+". "+q.q+"</p>"+
+   q.o.map((o,j)=>"<button class='opt' data-q='"+i+"' data-o='"+j+"'>"+String.fromCharCode(65+j)+". "+o+"</button>").join("")+
+   "<div class='exp'>"+q.e+"</div></div>").join("");
+  $$(".opt").forEach(b=>b.addEventListener("click",()=>{
+    const qi=+b.dataset.q, oi=+b.dataset.o;
+    if(answered.has(qi)) return;
+    answered.add(qi);
+    const wrap=$(".q[data-q='"+qi+"']");
+    $$(".opt",wrap).forEach(x=>{
+      const j=+x.dataset.o;
+      if(j===qs[qi].a) x.classList.add("right");
+      else if(j===oi) x.classList.add("wrong");
+    });
+    $(".exp",wrap).classList.add("show");
+    if(oi===qs[qi].a) score++;
+    $("#score").textContent=score+" / "+qs.length;
+  }));
+  $("#score").textContent=score+" / "+qs.length;
+}
+$("#qReset").addEventListener("click",()=>{score=0;answered=new Set();quizRender();annotate($("main"));});
+quizRender();
+
+/* ---------- abbreviations: glossary + inline tooltips ---------- */
+const ABBR={
+ "UAV":"Unmanned Aerial Vehicle — the aircraft itself, flying with no pilot on board",
+ "UAVs":"Unmanned Aerial Vehicles",
+ "UAS":"Unmanned Aircraft System — the aircraft plus ground station, data links, payload and crew",
+ "sUAS":"small Unmanned Aircraft System",
+ "RPAS":"Remotely Piloted Aircraft System — ICAO's term for a drone always flown by a licensed remote pilot",
+ "ICAO":"International Civil Aviation Organization",
+ "DGCA":"Directorate General of Civil Aviation — India's civil aviation regulator",
+ "NATO":"North Atlantic Treaty Organization",
+ "NIST":"National Institute of Standards and Technology (United States)",
+ "UIN":"Unique Identification Number — the registration number every drone needs in India",
+ "RPC":"Remote Pilot Certificate — the licence to fly a drone commercially in India",
+ "NPNT":"No Permission, No Take-off — India's digital flight-authorisation rule",
+ "GCS":"Ground Control Station — the laptop, tablet or console the remote pilot works from",
+ "C2":"Command and Control — the radio link carrying the pilot's commands up to the aircraft",
+ "VLOS":"Visual Line Of Sight — the pilot can see the aircraft with unaided eyes",
+ "EVLOS":"Extended Visual Line Of Sight — the aircraft is watched by trained observers",
+ "BVLOS":"Beyond Visual Line Of Sight — flying where nobody can see the aircraft",
+ "VTOL":"Vertical Take-Off and Landing",
+ "MTOW":"Maximum Take-Off Weight — the heaviest the aircraft is allowed to be at take-off",
+ "AUW":"All-Up Weight — the actual total mass at take-off, including battery and payload",
+ "AGL":"Above Ground Level — height measured from the ground directly below",
+ "AMSL":"Above Mean Sea Level — altitude measured from sea level",
+ "CG":"Centre of Gravity — the balance point of the aircraft",
+ "ISR":"Intelligence, Surveillance and Reconnaissance",
+ "EW":"Electronic Warfare",
+ "UCAV":"Unmanned Combat Aerial Vehicle — an armed drone",
+ "LASE":"Low Altitude, Short Endurance",
+ "LALE":"Low Altitude, Long Endurance",
+ "MALE":"Medium Altitude, Long Endurance — roughly 10 000 to 30 000 ft for 24 to 48 hours",
+ "HALE":"High Altitude, Long Endurance — above 30 000 ft",
+ "HAPS":"High Altitude Pseudo-Satellite — a solar aircraft loitering for weeks in the stratosphere",
+ "NRUAV":"Naval Rotary Unmanned Aerial Vehicle",
+ "CR":"Close Range",
+ "SR":"Short Range",
+ "MR":"Medium Range",
+ "MRE":"Medium Range Endurance",
+ "UGV":"Unmanned Ground Vehicle — a robot that drives instead of flying",
+ "USV":"Unmanned Surface Vessel — an uncrewed boat",
+ "UUV":"Unmanned Underwater Vehicle",
+ "AUV":"Autonomous Underwater Vehicle — untethered and pre-programmed",
+ "ROV":"Remotely Operated Vehicle — tethered and driven live by a human",
+ "AMR":"Autonomous Mobile Robot",
+ "ALFUS":"Autonomy Levels For Unmanned Systems — a framework for grading how independent a robot is",
+ "ACL":"Autonomous Control Level — a 1 to 10 autonomy ladder",
+ "FC":"Flight Controller — the small computer that keeps the aircraft stable and flies the mission",
+ "MCU":"Microcontroller Unit — the processor chip inside the flight controller",
+ "IMU":"Inertial Measurement Unit — the gyroscope plus accelerometer package that senses motion",
+ "MEMS":"Micro-Electro-Mechanical Systems — the chip-scale technology used to build tiny sensors",
+ "EKF":"Extended Kalman Filter — the maths that blends all the sensors into one best estimate of position and attitude",
+ "ESC":"Electronic Speed Controller — converts battery DC into the three-phase power a brushless motor needs",
+ "PDB":"Power Distribution Board — splits the single battery lead into one feed per motor",
+ "BEC":"Battery Eliminator Circuit — steps the battery voltage down to a clean 5 V for the electronics",
+ "BLDC":"Brushless Direct Current motor — the standard drone motor, with no wearing brushes",
+ "LiPo":"Lithium-Polymer — the rechargeable battery chemistry used in almost all drones",
+ "KV":"RPM per volt — how fast a motor spins for each volt applied, with no propeller fitted",
+ "RPM":"Revolutions Per Minute",
+ "PWM":"Pulse Width Modulation — an older analogue-style signal for commanding motor speed",
+ "DShot":"Digital Shot — a modern digital protocol between flight controller and speed controller",
+ "GNSS":"Global Navigation Satellite System — the umbrella term covering GPS, GLONASS, Galileo and NavIC",
+ "GPS":"Global Positioning System — the American satellite navigation constellation",
+ "GLONASS":"Russia's satellite navigation constellation",
+ "NavIC":"Navigation with Indian Constellation — India's regional satellite navigation system",
+ "HDOP":"Horizontal Dilution Of Precision — a number describing how well the visible satellites are spread out, and so how trustworthy the position fix is",
+ "RC":"Radio Control — the pilot's hand transmitter and the receiver on the aircraft",
+ "RSSI":"Received Signal Strength Indicator — how strong the radio link is",
+ "SBUS":"Serial Bus — a wiring standard carrying all control channels on one line",
+ "CRSF":"Crossfire — a long-range digital radio control protocol",
+ "ELRS":"ExpressLRS — an open-source long-range radio control system",
+ "FPV":"First Person View — flying by looking through the aircraft's own camera",
+ "VTX":"Video Transmitter — the radio that sends the live camera picture down to the pilot",
+ "MAVLink":"Micro Air Vehicle Link — the lightweight messaging protocol drones use to talk to ground stations",
+ "RTMP":"Real-Time Messaging Protocol — used to stream video over the internet",
+ "RTL":"Return To Launch — the failsafe that flies the aircraft home automatically",
+ "DAA":"Detect And Avoid — the ability to see other aircraft and get out of the way",
+ "ADS-B":"Automatic Dependent Surveillance–Broadcast — aircraft continuously broadcasting their own position",
+ "UTM":"Unmanned Traffic Management — the air-traffic system being built for drones",
+ "SORA":"Specific Operations Risk Assessment — the standard method for approving riskier drone flights",
+ "EO":"Electro-Optical — an ordinary visible-light camera",
+ "IR":"Infrared — heat radiation, sensed by thermal cameras",
+ "NIR":"Near Infrared — the band just beyond visible red, used to measure plant health",
+ "SAR":"Synthetic Aperture Radar — a radar that builds images through cloud and darkness",
+ "LiDAR":"Light Detection And Ranging — a laser scanner that measures 3D shape directly",
+ "NDVI":"Normalised Difference Vegetation Index — a plant-health number computed from red and near-infrared light",
+ "GSD":"Ground Sample Distance — how much ground one image pixel covers, in centimetres",
+ "GCP":"Ground Control Point — a surveyed marker on the ground used to anchor a map to real coordinates",
+ "GCPs":"Ground Control Points — surveyed markers used to anchor a map to real coordinates",
+ "RTK":"Real-Time Kinematic — satellite corrections applied live to give centimetre accuracy",
+ "PPK":"Post-Processed Kinematic — the same corrections applied after landing instead of in flight",
+ "DGPS":"Differential GPS — an earlier correction technique giving sub-metre accuracy",
+ "SfM":"Structure from Motion — the technique that reconstructs 3D shape from many overlapping photographs",
+ "SLAM":"Simultaneous Localisation And Mapping — building a map while working out your position in it",
+ "DSM":"Digital Surface Model — a height map including buildings and trees",
+ "DTM":"Digital Terrain Model — a height map of bare ground, with objects removed",
+ "DEM":"Digital Elevation Model — a general height map of the terrain",
+ "GIS":"Geographic Information System — software for storing and analysing mapped data",
+ "BIM":"Building Information Modelling — the digital 3D model of a construction project",
+ "FANET":"Flying Ad-hoc Network — a self-organising network formed between drones in flight",
+ "FANETs":"Flying Ad-hoc Networks — self-organising networks formed between drones in flight",
+ "MANET":"Mobile Ad-hoc Network — a network of moving devices with no fixed infrastructure",
+ "MANETs":"Mobile Ad-hoc Networks",
+ "VANET":"Vehicular Ad-hoc Network — the road-vehicle version of a mobile ad-hoc network",
+ "AODV":"Ad-hoc On-demand Distance Vector — a reactive routing protocol that finds a route only when needed",
+ "DSR":"Dynamic Source Routing — a reactive routing protocol carrying the full route in each packet",
+ "OLSR":"Optimised Link State Routing — a proactive protocol that keeps routes ready in advance",
+ "DSDV":"Destination-Sequenced Distance Vector — a proactive table-driven routing protocol",
+ "GPSR":"Greedy Perimeter Stateless Routing — forwards packets towards the destination's geographic position",
+ "MAC":"Medium Access Control — the layer deciding who gets to transmit and when",
+ "ISM":"Industrial, Scientific and Medical — the licence-free radio bands such as 2.4 GHz",
+ "LTE":"Long Term Evolution — 4G mobile network technology",
+ "QoS":"Quality of Service — guarantees on delay, jitter and bandwidth",
+ "AES":"Advanced Encryption Standard — the standard cipher used to protect links",
+ "NLoS":"Non Line of Sight — no clear unobstructed path between transmitter and receiver",
+ "LoS":"Line of Sight — a clear unobstructed path between transmitter and receiver",
+ "AHRS":"Attitude and Heading Reference System — sensors and maths giving orientation and heading",
+ "CW":"Clockwise — as seen looking down on the aircraft from above",
+ "CCW":"Counter-Clockwise — the opposite spin direction, used to cancel the torque of the CW propellers",
+ "PM2.5":"Particulate Matter under 2.5 micrometres — the fine dust fraction that matters most for health",
+ "PID":"Photo-Ionisation Detector — a gas sensor for volatile compounds",
+ "NAS":"Network Attached Storage — a shared disk on the office network",
+ "NVMe":"Non-Volatile Memory express — a fast solid-state storage interface",
+ "mAh":"milliamp-hours — battery capacity: how much charge the pack holds",
+ "Ah":"Amp-hours — battery capacity, equal to 1000 milliamp-hours",
+ "IP":"Internet Protocol — the addressing scheme networks use to route data",
+ "HD":"High Definition video",
+ "MP":"Megapixels — millions of pixels in an image",
+ "3D":"Three-dimensional"
+};
+const aKeys=Object.keys(ABBR).sort((a,b)=>b.length-a.length);
+const aEsc=s=>s.replace(/[.*+?^${}()|[\]\\\-]/g,"\\$&");
+const aPat="(?:^|(?<=[^A-Za-z0-9]))("+aKeys.map(aEsc).join("|")+")(?![A-Za-z0-9])";
+let rxG,rxT;
+try{ rxG=new RegExp(aPat,"g"); rxT=new RegExp(aPat); }
+catch(e){ rxG=new RegExp("\\b("+aKeys.map(aEsc).join("|")+")\\b","g"); rxT=new RegExp("\\b("+aKeys.map(aEsc).join("|")+")\\b"); }
+
+function annotate(root){
+  if(!root) return;
+  const bad={SCRIPT:1,STYLE:1,ABBR:1,BUTTON:1,INPUT:1,TEXTAREA:1,H1:1,H2:1,TITLE:1};
+  const nodes=[], w=document.createTreeWalker(root,NodeFilter.SHOW_TEXT,null);
+  while(w.nextNode()){
+    const n=w.currentNode;
+    if(!n.nodeValue||!rxT.test(n.nodeValue)) continue;
+    let p=n.parentNode, ok=true;
+    while(p&&p!==root.parentNode){
+      if(p.nodeType===1){
+        if(p.namespaceURI==="http://www.w3.org/2000/svg"||bad[p.tagName]){ok=false;break;}
+        if(p.classList&&p.classList.contains("no-abbr")){ok=false;break;}
+      }
+      p=p.parentNode;
+    }
+    if(ok) nodes.push(n);
+  }
+  nodes.forEach(n=>{
+    const s=n.nodeValue, frag=document.createDocumentFragment();
+    let last=0,m; rxG.lastIndex=0;
+    while((m=rxG.exec(s))!==null){
+      const term=m[1], at=m.index+m[0].length-term.length;
+      if(at>last) frag.appendChild(document.createTextNode(s.slice(last,at)));
+      const a=document.createElement("abbr");
+      a.title=ABBR[term]; a.textContent=term; frag.appendChild(a);
+      last=at+term.length;
+      if(rxG.lastIndex===m.index) rxG.lastIndex++;
+    }
+    if(last<s.length) frag.appendChild(document.createTextNode(s.slice(last)));
+    if(frag.childNodes.length) n.parentNode.replaceChild(frag,n);
+  });
+}
+
+const pop=document.createElement("div"); pop.className="abbr-pop"; document.body.appendChild(pop);
+let popT;
+document.addEventListener("click",e=>{
+  const t=e.target, a=(t&&t.closest)?t.closest("abbr[title]"):null;
+  if(a){ pop.textContent=a.textContent+" · "+a.title; pop.classList.add("on");
+    clearTimeout(popT); popT=setTimeout(()=>pop.classList.remove("on"),4500); }
+  setTimeout(()=>annotate($("main")),40);
+});
+
+(function glossary(){
+  const gl=$("#gloss");
+  const base=Object.keys(ABBR).filter(k=>!/s$/.test(k)||!ABBR[k.replace(/s$/,"")]);
+  gl.innerHTML=base.sort((a,b)=>a.toLowerCase().localeCompare(b.toLowerCase()))
+    .map(k=>"<div data-k=\""+(k+" "+ABBR[k]).toLowerCase().replace(/"/g,"")+"\"><b>"+k+"</b> — "+ABBR[k]+"</div>").join("");
+  $("#glossQ").addEventListener("input",e=>{
+    const q=e.target.value.trim().toLowerCase();
+    $$("#gloss div").forEach(d=>{ d.style.display=(!q||d.dataset.k.indexOf(q)>-1)?"":"none"; });
+  });
+})();
+
+annotate($("main"));
+})();
+</script>
+</body>
+</html>
