@@ -1,0 +1,2444 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Unit II · UAV Data Collection and Processing Methods — Flight Plan Notes</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Saira+Condensed:wght@500;600;700;800&family=Spectral:ital,wght@0,400;0,500;0,600;1,400&family=IBM+Plex+Mono:wght@400;500;600&display=swap');
+
+:root{
+  --chart:#E4E8D8;        /* sectional chart paper */
+  --vellum:#F6F7F0;       /* panel */
+  --ink:#151B13;
+  --ink2:#4C5548;
+  --magenta:#B3157E;      /* airspace magenta */
+  --blue:#1E5F8C;         /* controlled airspace blue */
+  --amber:#D98200;        /* caution */
+  --rule:rgba(21,27,19,.16);
+  --rule-2:rgba(21,27,19,.34);
+  --disp:'Saira Condensed','Arial Narrow',sans-serif;
+  --body:'Spectral',Georgia,serif;
+  --mono:'IBM Plex Mono',ui-monospace,Consolas,monospace;
+}
+
+*{box-sizing:border-box}
+html{scroll-behavior:smooth;scroll-padding-top:96px}
+body{
+  margin:0;background:var(--chart);color:var(--ink);font-family:var(--body);
+  font-size:16px;line-height:1.62;
+  background-image:
+    linear-gradient(rgba(21,27,19,.045) 1px,transparent 1px),
+    linear-gradient(90deg,rgba(21,27,19,.045) 1px,transparent 1px);
+  background-size:34px 34px;
+}
+h1,h2,h3,h4{font-family:var(--disp);text-transform:uppercase;letter-spacing:.045em;line-height:1.05;margin:0}
+p{margin:0 0 .85em}
+a{color:var(--blue)}
+:focus-visible{outline:2.5px solid var(--magenta);outline-offset:3px}
+
+/* ---------- top bar ---------- */
+.hud{position:sticky;top:0;z-index:40;background:rgba(228,232,216,.93);backdrop-filter:blur(7px);
+  border-bottom:1.5px solid var(--rule-2)}
+.hud-in{max-width:1280px;margin:0 auto;padding:9px 20px;display:flex;align-items:center;gap:18px}
+.hud-id{font-family:var(--mono);font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--ink2)}
+.hud-id b{color:var(--magenta);font-weight:600}
+.hud-title{font-family:var(--disp);font-weight:800;font-size:17px;letter-spacing:.06em;margin-right:auto}
+.hud-prog{display:flex;align-items:center;gap:9px;font-family:var(--mono);font-size:11px;color:var(--ink2)}
+.prog-track{width:130px;height:5px;background:rgba(21,27,19,.14);border-radius:0}
+.prog-fill{height:100%;width:0;background:var(--magenta);transition:width .25s}
+
+/* ---------- shell ---------- */
+.shell{max-width:1080px;margin:0 auto;padding:0 20px 90px;display:block}
+.rail{position:fixed;top:0;left:0;bottom:0;width:272px;max-width:82vw;background:var(--vellum);border-right:1.5px solid var(--rule-2);
+  padding:20px 22px 30px;z-index:70;overflow-y:auto;transform:translateX(-104%);transition:transform .28s ease;box-shadow:6px 0 22px rgba(21,27,19,.14)}
+.rail.open{transform:none}
+.rail-bg{position:fixed;inset:0;background:rgba(21,27,19,.38);z-index:65;opacity:0;pointer-events:none;transition:opacity .25s}
+.rail-bg.on{opacity:1;pointer-events:auto}
+.rail-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;padding-bottom:8px;border-bottom:1px solid var(--rule-2)}
+.rail-h{font-family:var(--mono);font-size:10px;letter-spacing:.2em;text-transform:uppercase;color:var(--ink2)}
+.rail-x{border:1px solid var(--rule-2);background:var(--chart);color:var(--ink);font-family:var(--mono);font-size:13px;line-height:1;
+  width:28px;height:28px;cursor:pointer}
+.rail-x:hover{background:var(--magenta);color:var(--vellum);border-color:var(--magenta)}
+.ham{flex:none;display:flex;flex-direction:column;justify-content:center;gap:5px;width:40px;height:34px;padding:0 9px;
+  border:1px solid var(--rule-2);background:var(--vellum);cursor:pointer}
+.ham span{display:block;height:2px;background:var(--ink);transition:transform .25s,opacity .2s}
+.ham:hover span{background:var(--magenta)}
+.ham.open span:nth-child(1){transform:translateY(7px) rotate(45deg)}
+.ham.open span:nth-child(2){opacity:0}
+.ham.open span:nth-child(3){transform:translateY(-7px) rotate(-45deg)}
+.rail a{display:flex;gap:10px;align-items:baseline;padding:6px 0;text-decoration:none;color:var(--ink2);font-family:var(--disp);
+  font-size:14.5px;letter-spacing:.05em;text-transform:uppercase;border-bottom:1px dotted transparent}
+.rail a span{font-family:var(--mono);font-size:10px;color:var(--magenta);min-width:20px}
+.rail a:hover{color:var(--ink)}
+.rail a.on{color:var(--ink);font-weight:700}
+.rail a.on span{background:var(--magenta);color:var(--vellum);padding:1px 3px}
+
+/* ---------- hero ---------- */
+.hero{padding:34px 0 8px}
+.eyebrow{font-family:var(--mono);font-size:11px;letter-spacing:.24em;text-transform:uppercase;color:var(--magenta)}
+.hero h1{font-size:clamp(38px,6.4vw,74px);font-weight:800;margin:10px 0 6px;letter-spacing:.02em}
+.hero h1 em{font-style:normal;color:var(--magenta)}
+.hero-sub{max-width:56ch;color:var(--ink2);font-size:17px}
+.chartbox{margin-top:22px;border:1.5px solid var(--rule-2);background:var(--vellum);position:relative;overflow:hidden}
+.chartbox svg{display:block;width:100%;height:auto}
+.chart-cap{display:flex;flex-wrap:wrap;gap:6px 20px;padding:9px 14px;border-top:1px solid var(--rule);font-family:var(--mono);
+  font-size:10.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink2)}
+.wp{cursor:pointer}
+.wp circle{transition:r .18s,fill .18s}
+.wp:hover circle.hit{r:15}
+.wp:hover text{fill:var(--magenta)}
+
+/* ---------- sections ---------- */
+.leg{padding:52px 0 8px;border-top:1.5px solid var(--rule-2);margin-top:44px}
+.leg-head{display:flex;gap:14px;align-items:flex-start;margin-bottom:20px}
+.leg-no{font-family:var(--mono);font-size:11px;letter-spacing:.14em;color:var(--vellum);background:var(--ink);padding:3px 6px;margin-top:5px}
+.leg h2{font-size:clamp(25px,3.6vw,38px);font-weight:800}
+.leg-kicker{font-family:var(--mono);font-size:10.5px;letter-spacing:.18em;text-transform:uppercase;color:var(--magenta);margin-bottom:4px}
+.lede{font-size:17.5px;max-width:66ch}
+
+.panel{background:var(--vellum);border:1.5px solid var(--rule-2);padding:20px 22px;margin:20px 0}
+.panel-t{font-family:var(--disp);font-weight:700;font-size:16px;letter-spacing:.09em;text-transform:uppercase;
+  display:flex;align-items:center;gap:9px;margin-bottom:14px;padding-bottom:9px;border-bottom:1px solid var(--rule)}
+.panel-t::before{content:"";width:9px;height:9px;background:var(--magenta);flex:none;transform:rotate(45deg)}
+.panel-t small{margin-left:auto;font-family:var(--mono);font-size:10px;letter-spacing:.14em;color:var(--ink2);text-transform:uppercase;font-weight:400}
+
+.two{display:grid;grid-template-columns:1fr 1fr;gap:22px}
+.three{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
+
+/* key list */
+ul.kl{list-style:none;padding:0;margin:0}
+ul.kl li{padding:7px 0 7px 20px;border-bottom:1px dotted var(--rule-2);position:relative}
+ul.kl li:last-child{border-bottom:0}
+ul.kl li::before{content:"▸";position:absolute;left:0;color:var(--magenta);font-size:12px;top:8px}
+ul.kl b{font-family:var(--disp);font-size:16px;letter-spacing:.04em;text-transform:uppercase}
+.mono{font-family:var(--mono);font-size:12.5px}
+.def{border-left:3px solid var(--magenta);padding:2px 0 2px 14px;margin:14px 0;font-size:17px}
+.note{background:rgba(217,130,0,.1);border:1px solid rgba(217,130,0,.45);padding:11px 14px;font-size:14.5px;margin:14px 0}
+.note b{font-family:var(--disp);letter-spacing:.06em;text-transform:uppercase;color:var(--amber)}
+
+/* table */
+table.t{width:100%;border-collapse:collapse;font-size:14px}
+table.t th{font-family:var(--mono);font-size:10px;letter-spacing:.14em;text-transform:uppercase;text-align:left;
+  padding:8px 9px;border-bottom:1.5px solid var(--ink);color:var(--ink2)}
+table.t td{padding:8px 9px;border-bottom:1px solid var(--rule);vertical-align:top}
+table.t tr:hover td{background:rgba(179,21,126,.06)}
+table.t td.hl{color:var(--magenta);font-weight:600}
+
+/* controls */
+.ctl{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:14px}
+button.chip{font-family:var(--disp);font-size:14px;letter-spacing:.06em;text-transform:uppercase;padding:6px 13px;
+  background:transparent;border:1.5px solid var(--rule-2);color:var(--ink2);cursor:pointer}
+button.chip:hover{border-color:var(--ink);color:var(--ink)}
+button.chip.on{background:var(--ink);border-color:var(--ink);color:var(--vellum)}
+button.chip.mag.on{background:var(--magenta);border-color:var(--magenta)}
+.slider{display:grid;grid-template-columns:1fr auto;gap:6px 12px;align-items:center;margin:12px 0}
+.slider label{font-family:var(--mono);font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--ink2);grid-column:1/-1}
+.slider input[type=range]{width:100%;accent-color:var(--magenta)}
+.slider output{font-family:var(--mono);font-size:14px;font-weight:600;color:var(--magenta);min-width:86px;text-align:right}
+input[type=number]{font-family:var(--mono);font-size:13px;padding:5px 7px;border:1.5px solid var(--rule-2);background:#fff;width:100%}
+.field{margin-bottom:9px}
+.field label{display:block;font-family:var(--mono);font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--ink2);margin-bottom:3px}
+
+/* readouts */
+.reads{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:1.5px;background:var(--rule-2);border:1.5px solid var(--rule-2)}
+.read{background:var(--vellum);padding:10px 12px}
+.read i{font-style:normal;display:block;font-family:var(--mono);font-size:9.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--ink2)}
+.read b{display:block;font-family:var(--disp);font-size:26px;font-weight:700;letter-spacing:.02em;line-height:1.15}
+.read b s{text-decoration:none;font-size:13px;color:var(--ink2);font-weight:500}
+.read.warn b{color:var(--amber)} .read.bad b{color:var(--magenta)} .read.good b{color:var(--blue)}
+
+/* multirotor stage */
+.stage{display:grid;grid-template-columns:1fr 250px;gap:20px;align-items:start}
+.stage-svg{background:var(--vellum);border:1px solid var(--rule);position:relative}
+.stage-svg svg{display:block;width:100%;height:auto}
+@keyframes spin{to{transform:rotate(360deg)}}
+.prop{transform-origin:center;transform-box:fill-box;animation:spin .55s linear infinite}
+.prop.ccw{animation-direction:reverse}
+
+/* component map */
+.lanes{display:grid;gap:12px}
+.lane{border:1px solid var(--rule);background:var(--vellum);padding:11px 12px}
+.lane h4{font-size:13px;letter-spacing:.12em;color:var(--ink2);margin-bottom:9px}
+.lane.power{border-left:4px solid var(--magenta)}
+.lane.control{border-left:4px solid var(--blue)}
+.lane.payload{border-left:4px solid var(--amber)}
+.blocks{display:flex;flex-wrap:wrap;gap:7px;align-items:center}
+.blk{font-family:var(--disp);font-size:13.5px;letter-spacing:.05em;text-transform:uppercase;padding:6px 11px;border:1.5px solid var(--rule-2);
+  background:#fff;cursor:pointer;color:var(--ink2)}
+.blk:hover{border-color:var(--ink);color:var(--ink)}
+.blk.on{background:var(--ink);color:var(--vellum);border-color:var(--ink)}
+.arrow{font-family:var(--mono);color:var(--rule-2);font-size:14px}
+.detail{margin-top:14px;border-top:1px solid var(--rule);padding-top:12px;min-height:104px}
+.detail h4{font-size:19px;margin-bottom:3px}
+.detail .spec{font-family:var(--mono);font-size:11.5px;color:var(--magenta);letter-spacing:.06em;margin-bottom:7px}
+
+/* telemetry */
+.tele{display:grid;grid-template-columns:200px 1fr;gap:18px}
+.hzn{border:1.5px solid var(--rule-2);overflow:hidden;background:#0e1410}
+.tape{font-family:var(--mono);font-size:11.5px;line-height:1.9}
+.tape div{display:flex;justify-content:space-between;border-bottom:1px dotted var(--rule);padding:1px 0}
+.tape s{text-decoration:none;color:var(--ink2);letter-spacing:.1em;text-transform:uppercase;font-size:10px}
+.tape b{font-weight:600}
+.alerts{margin-top:12px;min-height:56px;display:flex;flex-direction:column;gap:5px}
+.alert{font-family:var(--mono);font-size:11.5px;padding:5px 9px;border-left:3px solid var(--magenta);background:rgba(179,21,126,.08)}
+.alert.amb{border-color:var(--amber);background:rgba(217,130,0,.1)}
+
+/* cards */
+.cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(232px,1fr));gap:12px}
+.card{border:1.5px solid var(--rule-2);background:var(--vellum);padding:14px;cursor:pointer;transition:transform .16s}
+.card:hover{transform:translateY(-3px);border-color:var(--magenta)}
+.card h4{font-size:16px;margin-bottom:5px}
+.card .tag{font-family:var(--mono);font-size:9.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--magenta)}
+.card p{font-size:14px;margin:6px 0 0;color:var(--ink2)}
+.card .fix{display:none;margin-top:9px;padding-top:8px;border-top:1px dotted var(--rule-2);font-size:13.5px}
+.card.open .fix{display:block}
+.card.open{border-color:var(--magenta)}
+
+/* quiz */
+.q{border-bottom:1px solid var(--rule);padding:14px 0}
+.q p.stem{font-weight:600;margin-bottom:8px}
+.opt{display:block;width:100%;text-align:left;font-family:var(--body);font-size:14.5px;padding:6px 11px;margin-bottom:5px;
+  background:#fff;border:1.5px solid var(--rule);cursor:pointer;color:var(--ink)}
+.opt:hover{border-color:var(--ink2)}
+.opt.right{border-color:var(--blue);background:rgba(30,95,140,.11);font-weight:600}
+.opt.wrong{border-color:var(--magenta);background:rgba(179,21,126,.09);text-decoration:line-through}
+.exp{display:none;font-size:13.5px;color:var(--ink2);border-left:3px solid var(--blue);padding-left:11px;margin-top:7px}
+.exp.show{display:block}
+
+/* misc */
+.stat-row{display:flex;flex-wrap:wrap;gap:10px;font-family:var(--mono);font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink2)}
+.foot{margin-top:52px;border-top:1.5px solid var(--rule-2);padding-top:16px;font-family:var(--mono);font-size:11px;letter-spacing:.1em;
+  text-transform:uppercase;color:var(--ink2);display:flex;flex-wrap:wrap;gap:14px;justify-content:space-between}
+.badge{display:inline-block;font-family:var(--mono);font-size:10px;letter-spacing:.12em;text-transform:uppercase;
+  border:1px solid var(--rule-2);padding:1px 6px;color:var(--ink2)}
+
+/* figures */
+.fig{margin:20px 0;border:1.5px solid var(--rule-2);background:var(--vellum);padding:16px 18px 12px}
+.fig svg{display:block;width:100%;height:auto}
+.fig figcaption{margin-top:11px;padding-top:9px;border-top:1px solid var(--rule);font-family:var(--mono);
+  font-size:11px;letter-spacing:.05em;color:var(--ink2);line-height:1.55}
+.fig figcaption b{color:var(--magenta);letter-spacing:.14em;margin-right:6px}
+
+/* abbreviations */
+abbr[title]{border-bottom:1px dotted var(--magenta);text-decoration:none;cursor:help}
+abbr[title]:hover{background:rgba(179,21,126,.1)}
+.abbr-pop{position:fixed;left:50%;bottom:18px;transform:translateX(-50%);background:var(--ink);color:var(--vellum);
+  font-family:var(--mono);font-size:12.5px;line-height:1.5;padding:9px 15px;z-index:60;max-width:min(92vw,540px);
+  opacity:0;pointer-events:none;transition:opacity .18s;border-left:4px solid var(--magenta)}
+.abbr-pop.on{opacity:1}
+
+/* key takeaways */
+.tk{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:1.5px;background:var(--rule-2);border:1.5px solid var(--rule-2)}
+.tk-item{background:var(--vellum);padding:17px 18px;display:flex;gap:14px;align-items:flex-start}
+.tk-item i{font-style:normal;font-family:var(--disp);font-size:30px;font-weight:800;color:var(--magenta);line-height:.9;min-width:36px}
+.tk-item h4{font-size:16.5px;margin-bottom:5px}
+.tk-item p{font-size:14.5px;margin:0;color:var(--ink2);line-height:1.55}
+.headline{border:1.5px solid var(--ink);background:var(--ink);color:var(--chart);padding:20px 22px;margin:20px 0}
+.headline h3{font-size:clamp(19px,2.6vw,26px);color:var(--chart);margin-bottom:8px}
+.headline p{margin:0;font-size:16px;opacity:.9}
+.headline b{color:#F09CD0}
+
+/* glossary */
+.gloss{column-count:2;column-gap:28px}
+.gloss div{break-inside:avoid;padding:5px 0;border-bottom:1px dotted var(--rule);font-size:14px;line-height:1.45}
+.gloss b{font-family:var(--mono);font-size:12px;color:var(--magenta);letter-spacing:.03em}
+input.search{font-family:var(--mono);font-size:13px;padding:7px 10px;border:1.5px solid var(--rule-2);background:#fff;width:100%;margin-bottom:14px}
+
+@media(max-width:960px){
+  .hud-title{font-size:14px}
+  .two,.three,.stage,.tele{grid-template-columns:1fr}
+  .gloss{column-count:1}
+  .stage-svg{order:-1}
+}
+@media(prefers-reduced-motion:reduce){
+  *{animation:none!important;transition:none!important}
+  html{scroll-behavior:auto}
+}
+
+/* ===== Unit II additions ===== */
+pre.code{background:#151B13;color:#E9EDDD;font-family:var(--mono);font-size:12.5px;line-height:1.65;
+  padding:13px 16px;overflow-x:auto;margin:12px 0;border-left:4px solid var(--magenta)}
+pre.code .c{color:#8a967f}
+pre.code .k{color:#F09CD0}
+pre.code .s{color:#9CC4E4}
+.lab{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin:14px 0}
+.cv{border:1.5px solid var(--rule-2);background:#fff}
+.cv canvas{display:block;width:100%;height:auto;image-rendering:pixelated}
+.cv-cap{font-family:var(--mono);font-size:10px;letter-spacing:.13em;text-transform:uppercase;color:var(--ink2);
+  padding:6px 9px;border-top:1px solid var(--rule);background:var(--vellum)}
+.kern{display:inline-grid;grid-template-columns:repeat(var(--kc,3),46px);gap:3px;margin:8px 0}
+.kern span{font-family:var(--mono);font-size:12px;text-align:center;padding:7px 0;background:#fff;border:1px solid var(--rule-2)}
+.kern span.neg{color:var(--magenta)} .kern span.pos{color:var(--blue);font-weight:600}
+.bar-row{display:grid;grid-template-columns:150px 1fr 84px;gap:10px;align-items:center;font-family:var(--mono);
+  font-size:11px;letter-spacing:.06em;margin:6px 0}
+.bar-row .tr{background:rgba(21,27,19,.1);height:13px;position:relative}
+.bar-row .fl{position:absolute;left:0;top:0;bottom:0;background:var(--blue)}
+.bar-row .fl.mag{background:var(--magenta)} .bar-row .fl.amb{background:var(--amber)}
+.bar-row b{text-align:right;font-weight:600}
+.funnel{display:grid;gap:6px;margin:12px 0}
+.stagebar{display:grid;grid-template-columns:96px 1fr 120px;gap:10px;align-items:center;font-family:var(--mono);font-size:11px}
+.stagebar .tr{background:rgba(21,27,19,.08);height:16px;position:relative}
+.stagebar .fl{position:absolute;left:0;top:0;bottom:0;background:var(--blue);transition:width .25s}
+.stagebar.last .fl{background:var(--magenta)}
+.swatch{display:inline-block;width:52px;height:30px;border:1.5px solid var(--rule-2);vertical-align:middle}
+.step-desc{min-height:88px}
+</style>
+</head>
+<body>
+
+<div class="hud">
+  <div class="hud-in">
+    <button class="ham" id="ham" aria-label="Open route menu" aria-expanded="false" aria-controls="rail"><span></span><span></span><span></span></button>
+    <div class="hud-id">UNIT <b>II</b></div>
+    <div class="hud-title">UAV Data Collection &amp; Processing Methods</div>
+    <div class="hud-prog"><span id="progTxt">0%</span><div class="prog-track"><div class="prog-fill" id="progFill"></div></div></div>
+  </div>
+</div>
+
+<div class="shell">
+
+  <nav class="rail no-abbr" id="rail" aria-label="Route menu">
+    <div class="rail-top"><div class="rail-h">Route / 16 legs + arrival</div><button class="rail-x" id="railX" aria-label="Close menu">&#10005;</button></div>
+    <a href="#l1"><span>01</span>Remote sensing</a>
+    <a href="#l2"><span>02</span>LiDAR data</a>
+    <a href="#l3"><span>03</span>Processing</a>
+    <a href="#l4"><span>04</span>Georeferencing</a>
+    <a href="#l5"><span>05</span>Cloud computing</a>
+    <a href="#l6"><span>06</span>Photogrammetry SW</a>
+    <a href="#l7"><span>07</span>LiDAR SW</a>
+    <a href="#l8"><span>08</span>Image processing</a>
+    <a href="#l9"><span>09</span>Read &amp; write</a>
+    <a href="#l10"><span>10</span>Color spaces</a>
+    <a href="#l11"><span>11</span>Filters</a>
+    <a href="#l12"><span>12</span>Edge detection</a>
+    <a href="#l13"><span>13</span>Histogram + CLAHE</a>
+    <a href="#l14"><span>14</span>Contours + segments</a>
+    <a href="#l15"><span>15</span>Haar cascade</a>
+    <a href="#l16"><span>16</span>Revision + quiz</a>
+    <a href="#l17"><span>◆</span>Key takeaways</a>
+  </nav>
+  <div class="rail-bg" id="railBg"></div>
+
+  <main>
+
+  <!-- ================= HERO ================= -->
+  <header class="hero">
+    <div class="eyebrow">Data pipeline · Aerial sensing · Semester notes</div>
+    <h1>Collect the sky,<br>then <em>compute</em> it.</h1>
+    <p class="hero-sub">Sixteen waypoints, from photons striking a sensor to a Haar cascade finding an object in the frame. The image labs further down the route are real: every filter, edge map, histogram and contour is computed live in your browser on a synthetic aerial scene — the same mathematics OpenCV runs, in miniature.</p>
+
+    <div class="chartbox">
+      <svg viewBox="0 0 960 372" role="img" aria-label="Chart showing the sixteen topics of this unit as route waypoints from capture to product">
+        <defs>
+          <path id="rt" d="M50 315 L109 265 L168 295 L227 225 L286 258 L345 188 L404 222 L463 152 L522 190 L581 124 L640 162 L699 98 L758 140 L817 80 L876 118 L930 58" fill="none"/>
+          <pattern id="hatch" width="7" height="7" patternTransform="rotate(45)" patternUnits="userSpaceOnUse">
+            <line x1="0" y1="0" x2="0" y2="7" stroke="#B3157E" stroke-width="1" opacity=".28"/>
+          </pattern>
+        </defs>
+        <rect width="960" height="372" fill="#F6F7F0"/>
+        <g opacity=".5" stroke="#4C5548" stroke-width=".5">
+          <path d="M140 372 Q210 300 170 210 T250 60" fill="none" opacity=".5"/>
+          <path d="M430 372 Q490 290 450 200 T550 40" fill="none" opacity=".35"/>
+          <path d="M730 372 Q790 300 750 190 T850 30" fill="none" opacity=".35"/>
+        </g>
+        <circle cx="300" cy="96" r="62" fill="url(#hatch)" stroke="#B3157E" stroke-width="1.4" stroke-dasharray="7 5" opacity=".85"/>
+        <text x="300" y="30" text-anchor="middle" font-family="IBM Plex Mono,monospace" font-size="9" letter-spacing="1.6" fill="#B3157E">RAW DATA · UNPROCESSED</text>
+        <path d="M520 372 L565 296 L660 314 L710 372 Z" fill="#1E5F8C" opacity=".1"/>
+        <text x="612" y="345" text-anchor="middle" font-family="IBM Plex Mono,monospace" font-size="8.5" letter-spacing="1.4" fill="#1E5F8C">CLOUD PROCESSING ZONE</text>
+        <rect x="502" y="68" width="394" height="150" fill="none" stroke="#D98200" stroke-dasharray="5 4" stroke-width="1.2" opacity=".8"/>
+        <text x="512" y="232" font-family="IBM Plex Mono,monospace" font-size="8.5" letter-spacing="1.4" fill="#D98200">OPENCV LAB · WP 09–15</text>
+
+        <use href="#rt" stroke="#151B13" stroke-width="2" stroke-dasharray="9 6" opacity=".85"/>
+        <g id="wps"></g>
+
+        <g id="acft">
+          <path d="M0,-9 L6,7 L0,3 L-6,7 Z" fill="#B3157E"/>
+          <animateMotion dur="19s" repeatCount="indefinite" rotate="auto"><mpath href="#rt"/></animateMotion>
+        </g>
+
+        <g transform="translate(900,300)" stroke="#4C5548" fill="none" stroke-width="1">
+          <circle r="21"/><path d="M0,-27 L0,-18 M0,18 L0,27 M-27,0 L-18,0 M18,0 L27,0"/>
+          <path d="M0,-16 L4,4 L0,0 L-4,4 Z" fill="#151B13" stroke="none"/>
+          <text y="-31" text-anchor="middle" font-family="IBM Plex Mono,monospace" font-size="8.5" fill="#151B13">N</text>
+        </g>
+        <g transform="translate(40,352)" font-family="IBM Plex Mono,monospace" font-size="8" fill="#4C5548">
+          <line x1="0" y1="0" x2="80" y2="0" stroke="#4C5548" stroke-width="1.2"/>
+          <line x1="0" y1="-4" x2="0" y2="4" stroke="#4C5548"/><line x1="80" y1="-4" x2="80" y2="4" stroke="#4C5548"/>
+          <text x="86" y="3">1 LEG ≈ 1 EXAM QUESTION</text>
+        </g>
+      </svg>
+      <div class="chart-cap">
+        <span>◆ Waypoint = topic</span><span style="color:#B3157E">▬ Magenta = raw / hazard</span>
+        <span style="color:#1E5F8C">▬ Blue = cloud processing</span><span style="color:#D98200">▬ Amber = live labs</span><span>Click any waypoint to jump</span>
+      </div>
+    </div>
+  </header>
+
+  <!-- ================= 01 REMOTE SENSING ================= -->
+  <section class="leg" id="l1">
+    <div class="leg-head"><div class="leg-no">WP 01</div><div>
+      <div class="leg-kicker">Departure · Sensing physics</div><h2>Aerial Remote Sensing Data</h2></div></div>
+
+    <p class="lede">Remote sensing is the art of learning about a surface <b>without touching it</b> — by measuring the electromagnetic radiation it reflects or emits. A UAV is simply a very low, very flexible remote-sensing platform: it flies under the clouds, on demand, and resolves centimetres where a satellite resolves metres.</p>
+
+    <div class="def">Remote sensing = acquiring information about an object or area by measuring reflected or emitted electromagnetic (EM) energy from a distance, then processing and interpreting that measurement.</div>
+
+    <div class="two">
+      <div class="panel">
+        <div class="panel-t">Passive sensing</div>
+        <ul class="kl">
+          <li><b>Energy source = </b>the Sun (reflected light) or the object's own heat (emitted thermal radiation).</li>
+          <li><b>Sensors = </b>RGB cameras, multispectral cameras, hyperspectral imagers, thermal (TIR) cameras.</li>
+          <li><b>Limits = </b>needs illumination (except thermal), affected by shadows, haze and time of day.</li>
+        </ul>
+      </div>
+      <div class="panel">
+        <div class="panel-t">Active sensing</div>
+        <ul class="kl">
+          <li><b>Energy source = </b>the sensor itself fires energy and measures the echo.</li>
+          <li><b>Sensors = </b>LiDAR (laser pulses), radar / SAR (microwaves).</li>
+          <li><b>Strengths = </b>works day or night, measures range directly, LiDAR sees through gaps in vegetation.</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-t">Band explorer <small>Click a spectral band</small></div>
+      <div class="ctl" id="bandCtl"></div>
+      <figure class="fig" style="margin:10px 0">
+        <svg viewBox="0 0 900 84" aria-label="Electromagnetic spectrum strip from visible to thermal infrared">
+          <rect x="20" y="26" width="60" height="26" fill="#3b5bd6"/>
+          <rect x="80" y="26" width="60" height="26" fill="#3f9a3f"/>
+          <rect x="140" y="26" width="60" height="26" fill="#c23a2e"/>
+          <rect x="200" y="26" width="50" height="26" fill="#8a2f4f"/>
+          <rect x="250" y="26" width="120" height="26" fill="#5a4a6e"/>
+          <rect x="370" y="26" width="170" height="26" fill="#4a4a58"/>
+          <rect x="540" y="26" width="330" height="26" fill="#2f2f38"/>
+          <rect id="bandHL" x="20" y="20" width="60" height="38" fill="none" stroke="#B3157E" stroke-width="2.5"/>
+          <g font-family="IBM Plex Mono,monospace" font-size="9.5" fill="#4C5548">
+            <text x="50" y="70" text-anchor="middle">BLUE</text>
+            <text x="110" y="70" text-anchor="middle">GREEN</text>
+            <text x="170" y="70" text-anchor="middle">RED</text>
+            <text x="225" y="70" text-anchor="middle">R-EDGE</text>
+            <text x="310" y="70" text-anchor="middle">NIR</text>
+            <text x="455" y="70" text-anchor="middle">SWIR</text>
+            <text x="705" y="70" text-anchor="middle">THERMAL IR (EMITTED)</text>
+            <text x="20" y="14">≈450 nm</text><text x="870" y="14" text-anchor="end">≈14 µm</text>
+          </g>
+        </svg>
+      </figure>
+      <div class="detail" id="bandDet"></div>
+    </div>
+
+    <div class="two">
+      <div class="panel">
+        <div class="panel-t">The four resolutions</div>
+        <ul class="kl">
+          <li><b>Spatial = </b>size of one pixel on the ground (GSD). UAV: 0.5–5 cm. Satellite: 30 cm – 30 m.</li>
+          <li><b>Spectral = </b>how many bands, and how narrow. RGB = 3 wide bands; multispectral ≈ 4–10; hyperspectral = 100+ narrow contiguous bands.</li>
+          <li><b>Radiometric = </b>bit depth — how many brightness levels per band (8-bit = 256, 12-bit = 4096).</li>
+          <li><b>Temporal = </b>revisit time. Satellites: days. UAVs: whenever you choose to fly — the decisive advantage for monitoring.</li>
+        </ul>
+        <div class="note"><b>Exam trap.</b> "High resolution" alone is meaningless — always state <i>which</i> of the four resolutions you mean.</div>
+      </div>
+      <div class="panel">
+        <div class="panel-t">NDVI instrument <small>Vegetation index from two bands</small></div>
+        <p style="font-size:14.5px">Healthy leaves absorb red (chlorophyll) and strongly reflect NIR (cell structure). NDVI exploits the gap:</p>
+        <p class="mono" style="font-size:14px">NDVI = (NIR − Red) / (NIR + Red)</p>
+        <div class="slider"><div class="field"><label>NIR reflectance</label><input type="range" id="ndNIR" min="0" max="100" value="55"></div><output id="ndNIRo" class="mono">0.55</output></div>
+        <div class="slider"><div class="field"><label>Red reflectance</label><input type="range" id="ndRED" min="0" max="100" value="8"></div><output id="ndREDo" class="mono">0.08</output></div>
+        <div class="reads">
+          <div class="read"><i>NDVI</i><b id="ndVal">—</b></div>
+          <div class="read"><i>Interpretation</i><b id="ndTxt" style="font-size:16px;line-height:1.3">—</b></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-t">UAV sensor payloads for remote sensing</div>
+      <table class="t"><thead><tr><th>Sensor</th><th>Bands</th><th>Type</th><th>Typical use</th></tr></thead><tbody>
+        <tr><td class="hl">RGB camera</td><td>3 wide (visible)</td><td>Passive</td><td>Orthomosaics, 3D models, inspection, mapping</td></tr>
+        <tr><td class="hl">Multispectral</td><td>4–10 discrete (adds Red-Edge, NIR)</td><td>Passive</td><td>Crop health, NDVI/NDRE, forestry</td></tr>
+        <tr><td class="hl">Hyperspectral</td><td>100+ narrow, contiguous</td><td>Passive</td><td>Species / mineral identification, water quality</td></tr>
+        <tr><td class="hl">Thermal (TIR)</td><td>1 (8–14 µm emitted)</td><td>Passive</td><td>Irrigation stress, solar panels, search &amp; rescue, leaks</td></tr>
+        <tr><td class="hl">LiDAR</td><td>Laser pulses (905 / 1550 nm)</td><td>Active</td><td>Terrain under canopy, powerlines, precise 3D structure</td></tr>
+      </tbody></table>
+    </div>
+
+    <div class="panel">
+      <div class="panel-t">Use cases — the same field through five sensors <small>Simulated views · click a sensor</small></div>
+      <div class="ctl" id="senCtl"></div>
+      <div class="two" style="margin-top:12px">
+        <div>
+          <div class="cv"><canvas id="cvSen" width="252" height="168"></canvas><div class="cv-cap" id="senCap">—</div></div>
+        </div>
+        <div class="detail" id="senDet"></div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-t">Hardware reference — a multispectral camera up close</div>
+      <figure class="fig" style="margin:0">
+        <svg viewBox="0 0 470 250" aria-label="Labelled drawing of a five-band multispectral UAV camera with its sunshine sensor">
+          <line x1="252" y1="42" x2="450" y2="42" stroke="#4C5548" stroke-width="1.2" stroke-dasharray="4 3"/>
+          <text x="294" y="33" text-anchor="end" font-size="9" fill="#4C5548" letter-spacing="1.5">TOP OF THE DRONE</text>
+          <rect x="330" y="20" width="84" height="22" rx="5" fill="#d8d2c2" stroke="#151B13" stroke-width="1.2"/>
+          <circle cx="372" cy="17" r="6" fill="#efe9d8" stroke="#151B13" stroke-width="1.1"/>
+          <path d="M330 40 C 282 54, 252 52, 206 66" fill="none" stroke="#4C5548" stroke-width="1.2" stroke-dasharray="3 3"/>
+          <text x="288" y="82" font-size="11" font-weight="600" fill="#151B13">Irradiance (sunshine) sensor</text>
+          <text x="288" y="96" font-size="10" fill="#4C5548">faces the sky · logs each shot</text>
+          <text x="288" y="109" font-size="10" fill="#4C5548">keeps reflectance stable in clouds</text>
+
+          <rect x="110" y="56" width="40" height="12" rx="3" fill="#262b24" stroke="#151B13"/>
+          <rect x="42" y="66" width="176" height="118" rx="12" fill="#262b24" stroke="#151B13" stroke-width="1.5"/>
+          <rect x="54" y="78" width="152" height="94" rx="8" fill="#333a30"/>
+          <circle cx="60" cy="84" r="1.6" fill="#4C5548"/><circle cx="200" cy="84" r="1.6" fill="#4C5548"/>
+          <circle cx="60" cy="166" r="1.6" fill="#4C5548"/><circle cx="200" cy="166" r="1.6" fill="#4C5548"/>
+          <g>
+            <circle cx="84" cy="104" r="12" fill="#0e110d" stroke="#4C5548"/><circle cx="84" cy="104" r="5.5" fill="#1E5F8C"/><circle cx="82" cy="102" r="1.7" fill="#cfe3ee"/>
+            <circle cx="126" cy="104" r="12" fill="#0e110d" stroke="#4C5548"/><circle cx="126" cy="104" r="5.5" fill="#1E5F8C"/><circle cx="124" cy="102" r="1.7" fill="#cfe3ee"/>
+            <circle cx="168" cy="104" r="12" fill="#0e110d" stroke="#4C5548"/><circle cx="168" cy="104" r="5.5" fill="#1E5F8C"/><circle cx="166" cy="102" r="1.7" fill="#cfe3ee"/>
+            <circle cx="105" cy="146" r="12" fill="#0e110d" stroke="#4C5548"/><circle cx="105" cy="146" r="5.5" fill="#1E5F8C"/><circle cx="103" cy="144" r="1.7" fill="#cfe3ee"/>
+            <circle cx="147" cy="146" r="12" fill="#0e110d" stroke="#4C5548"/><circle cx="147" cy="146" r="5.5" fill="#1E5F8C"/><circle cx="145" cy="144" r="1.7" fill="#cfe3ee"/>
+          </g>
+          <rect x="178" y="138" width="20" height="16" rx="3" fill="#0e110d" stroke="#4C5548"/>
+          <line x1="182" y1="98" x2="248" y2="120" stroke="#4C5548" stroke-width="1"/>
+          <text x="252" y="122" font-size="11" font-weight="600" fill="#151B13">5 narrow-band lenses</text>
+          <text x="252" y="136" font-size="10" fill="#4C5548">Blue · Green · Red · Red-Edge · NIR</text>
+          <text x="252" y="149" font-size="10" fill="#4C5548">one small mono image per band, per shot</text>
+          <line x1="198" y1="150" x2="248" y2="166" stroke="#4C5548" stroke-width="1"/>
+          <text x="252" y="170" font-size="10" fill="#4C5548">panchromatic slit — sharpens the output</text>
+          <text x="42" y="212" font-size="10" fill="#4C5548">palm-sized, ≈ 230 g — this whole box is one row of the payload table above</text>
+          <text x="42" y="234" font-size="10" fill="#B3157E">bands are re-aligned in software, then NDVI-style maths runs per pixel</text>
+        </svg>
+        <figcaption><b>FIELD REFERENCE</b> A RedEdge-class multispectral camera: five separate lenses (not one lens with filters), plus a sunshine sensor that rides on top of the drone for radiometric calibration.</figcaption>
+      </figure>
+    </div>
+  </section>
+
+  <!-- ================= 02 LIDAR ================= -->
+  <section class="leg" id="l2">
+    <div class="leg-head"><div class="leg-no">WP 02</div><div>
+      <div class="leg-kicker">Active ranging</div><h2>LiDAR Data</h2></div></div>
+
+    <p class="lede">LiDAR (Light Detection and Ranging) fires hundreds of thousands of laser pulses per second and times each echo. Because every point's position comes from the sensor's own measurement — not from matching photographs — LiDAR delivers 3D structure even over textureless surfaces and <b>through gaps in vegetation</b> down to the true ground.</p>
+
+    <div class="def">Range from time of flight: <span class="mono">R = c · Δt / 2</span> — half, because the pulse travels out <i>and</i> back at the speed of light c.</div>
+
+    <div class="panel">
+      <div class="panel-t">One pulse, many returns</div>
+      <div class="two">
+        <figure class="fig" style="margin:0">
+          <svg viewBox="0 0 420 260" aria-label="LiDAR pulse producing multiple returns through a tree canopy">
+            <path d="M60 18 L92 30 L76 34 Z" fill="#151B13"/>
+            <text x="104" y="30" font-family="IBM Plex Mono,monospace" font-size="10" fill="#4C5548">UAV + LiDAR + GNSS/IMU</text>
+            <line x1="74" y1="34" x2="150" y2="238" stroke="#B3157E" stroke-width="1.6" stroke-dasharray="5 4"/>
+            <circle cx="106" cy="120" r="4.5" fill="#B3157E"/><text x="118" y="118" font-family="IBM Plex Mono,monospace" font-size="9.5" fill="#B3157E">1st return · canopy top</text>
+            <circle cx="122" cy="163" r="4.5" fill="#D98200"/><text x="134" y="161" font-family="IBM Plex Mono,monospace" font-size="9.5" fill="#D98200">2nd · branches</text>
+            <circle cx="136" cy="201" r="4.5" fill="#D98200"/><text x="148" y="199" font-family="IBM Plex Mono,monospace" font-size="9.5" fill="#D98200">3rd · understorey</text>
+            <circle cx="150" cy="238" r="4.5" fill="#1E5F8C"/><text x="162" y="236" font-family="IBM Plex Mono,monospace" font-size="9.5" fill="#1E5F8C">Last return · GROUND</text>
+            <path d="M70 150 Q106 76 148 148 Q170 118 196 156 Q210 140 232 162 L232 238 L70 238 Z" fill="#2f4a26" opacity=".35"/>
+            <line x1="20" y1="240" x2="400" y2="240" stroke="#151B13" stroke-width="2"/>
+            <text x="398" y="256" text-anchor="end" font-family="IBM Plex Mono,monospace" font-size="9" fill="#4C5548">TERRAIN</text>
+          </svg>
+          <figcaption><b>FIG 02-A</b> A single pulse can echo several times. First returns map the canopy (→ DSM); last returns reach the ground (→ DTM). Photogrammetry only ever sees the top surface.</figcaption>
+        </figure>
+        <div>
+          <ul class="kl">
+            <li><b>Discrete-return = </b>the scanner records 2–5 echo peaks per pulse. Standard on UAV LiDAR.</li>
+            <li><b>Full-waveform = </b>the entire returning energy curve is digitised — richer vegetation structure, heavier data.</li>
+            <li><b>Direct georeferencing = </b>each point = scanner range + angle, combined with GNSS position and IMU attitude, all time-synchronised. No photo matching needed.</li>
+            <li><b>Intensity = </b>strength of each echo — a free "grayscale image" that helps classify asphalt vs grass vs paint.</li>
+          </ul>
+          <div class="note"><b>Remember.</b> LiDAR accuracy depends on the GNSS/IMU trajectory quality; photogrammetry accuracy depends on image texture, overlap and GCPs.</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-t">Point-density planner <small>Live instrument</small></div>
+      <div class="two">
+        <div>
+          <div class="slider"><div class="field"><label>Pulse repetition rate</label><input type="range" id="pdPRR" min="50" max="600" value="240" step="10"></div><output id="pdPRRo" class="mono">240 kHz</output></div>
+          <div class="slider"><div class="field"><label>Flight speed</label><input type="range" id="pdV" min="3" max="15" value="8"></div><output id="pdVo" class="mono">8 m/s</output></div>
+          <div class="slider"><div class="field"><label>Altitude AGL</label><input type="range" id="pdH" min="30" max="120" value="60" step="5"></div><output id="pdHo" class="mono">60 m</output></div>
+          <div class="slider"><div class="field"><label>Scanner FOV</label><input type="range" id="pdFOV" min="20" max="75" value="70" step="1"></div><output id="pdFOVo" class="mono">70°</output></div>
+        </div>
+        <div>
+          <div class="reads">
+            <div class="read"><i>Swath width</i><b id="pdSw">— <s>m</s></b></div>
+            <div class="read good"><i>Point density</i><b id="pdD">— <s>pts/m²</s></b></div>
+            <div class="read"><i>Point spacing</i><b id="pdS">— <s>cm</s></b></div>
+            <div class="read warn"><i>Coverage rate</i><b id="pdA">— <s>ha/min</s></b></div>
+          </div>
+          <p style="font-size:13.5px;margin-top:10px" class="mono">swath = 2·h·tan(FOV/2) &nbsp;·&nbsp; density = PRR / (v · swath)</p>
+          <p style="font-size:14px;color:var(--ink2)">Fly lower or slower → denser cloud but less area per battery. Corridor mapping (powerlines) wants density; district mapping wants coverage.</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="two">
+      <div class="panel">
+        <div class="panel-t">What each point carries (LAS / LAZ)</div>
+        <ul class="kl">
+          <li><b>XYZ = </b>coordinates in the project CRS.</li>
+          <li><b>Intensity = </b>echo strength.</li>
+          <li><b>Return no. / total returns = </b>e.g. 2 of 4.</li>
+          <li><b>Classification = </b>semantic label (table →).</li>
+          <li><b>GPS time + scan angle = </b>for calibration and strip adjustment.</li>
+          <li><b>RGB = </b>optional colour fused from a synchronised camera.</li>
+        </ul>
+        <p style="font-size:13.5px;color:var(--ink2);margin-top:8px">LAS is the open binary standard; LAZ is its lossless compression (≈ 7–10× smaller).</p>
+      </div>
+      <div class="panel">
+        <div class="panel-t">Standard ASPRS classes</div>
+        <table class="t"><thead><tr><th>Code</th><th>Class</th></tr></thead><tbody>
+          <tr><td class="hl">1</td><td>Unclassified</td></tr>
+          <tr><td class="hl">2</td><td>Ground — the class the DTM is built from</td></tr>
+          <tr><td class="hl">3 / 4 / 5</td><td>Low / medium / high vegetation</td></tr>
+          <tr><td class="hl">6</td><td>Building</td></tr>
+          <tr><td class="hl">7</td><td>Noise (birds, air points)</td></tr>
+          <tr><td class="hl">9</td><td>Water</td></tr>
+        </tbody></table>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-t">Hardware reference — what LiDAR kit looks like</div>
+      <figure class="fig" style="margin:0">
+        <svg viewBox="0 0 900 330" aria-label="Labelled drawings of a gimballed LiDAR pod, a spinning puck scanner, and a LiDAR-equipped survey drone">
+          <line x1="300" y1="34" x2="300" y2="300" stroke="#cfd4c3" stroke-dasharray="4 4"/>
+          <line x1="600" y1="34" x2="600" y2="300" stroke="#cfd4c3" stroke-dasharray="4 4"/>
+
+          <text x="150" y="22" text-anchor="middle" font-size="10" letter-spacing="1.5" fill="#151B13" font-weight="600">GIMBALLED SURVEY POD</text>
+          <rect x="138" y="38" width="64" height="8" rx="2" fill="#262b24"/>
+          <circle cx="146" cy="52" r="4" fill="#9aa08e" stroke="#151B13" stroke-width="1"/>
+          <circle cx="162" cy="52" r="4" fill="#9aa08e" stroke="#151B13" stroke-width="1"/>
+          <circle cx="178" cy="52" r="4" fill="#9aa08e" stroke="#151B13" stroke-width="1"/>
+          <circle cx="194" cy="52" r="4" fill="#9aa08e" stroke="#151B13" stroke-width="1"/>
+          <rect x="196" y="56" width="8" height="44" rx="2" fill="#262b24"/>
+          <rect x="140" y="94" width="64" height="8" rx="2" fill="#262b24"/>
+          <rect x="116" y="104" width="108" height="96" rx="14" fill="#2a2f28" stroke="#151B13" stroke-width="1.5"/>
+          <rect x="130" y="118" width="80" height="40" rx="8" fill="#10130f" stroke="#4C5548"/>
+          <ellipse cx="170" cy="138" rx="31" ry="12" fill="#1E5F8C" opacity=".45"/>
+          <circle cx="158" cy="132" r="2.4" fill="#cfe3ee" opacity=".8"/>
+          <circle cx="170" cy="180" r="11" fill="#0e110d" stroke="#4C5548"/>
+          <circle cx="170" cy="180" r="5" fill="#527f9a"/>
+          <text x="8" y="48" font-size="9" fill="#4C5548">vibration dampers</text>
+          <line x1="72" y1="45" x2="140" y2="46" stroke="#4C5548" stroke-width="1"/>
+          <text x="8" y="134" font-size="9" fill="#4C5548">laser window</text>
+          <line x1="62" y1="131" x2="128" y2="132" stroke="#4C5548" stroke-width="1"/>
+          <text x="8" y="178" font-size="9" fill="#4C5548">RGB camera —</text>
+          <text x="8" y="189" font-size="9" fill="#4C5548">colourises points</text>
+          <line x1="84" y1="181" x2="157" y2="180" stroke="#4C5548" stroke-width="1"/>
+          <text x="230" y="150" font-size="9" fill="#4C5548">IMU sealed</text>
+          <text x="230" y="161" font-size="9" fill="#4C5548">inside</text>
+          <text x="150" y="232" text-anchor="middle" font-size="9" fill="#4C5548">hangs nose-down under the aircraft:</text>
+          <text x="150" y="245" text-anchor="middle" font-size="9" fill="#4C5548">laser + RGB + IMU in one unit</text>
+
+          <text x="450" y="22" text-anchor="middle" font-size="10" letter-spacing="1.5" fill="#151B13" font-weight="600">SPINNING “PUCK” SCANNER</text>
+          <path d="M398 80 C420 62 480 62 502 80" fill="none" stroke="#B3157E" stroke-width="2"/>
+          <path d="M502 80 L492 72 L496 84 Z" fill="#B3157E"/>
+          <text x="450" y="50" text-anchor="middle" font-size="10" fill="#B3157E">360° per revolution</text>
+          <rect x="396" y="90" width="108" height="88" fill="#2a2f28" stroke="#151B13" stroke-width="1.4"/>
+          <rect x="396" y="118" width="108" height="26" fill="#10130f"/>
+          <line x1="398" y1="126" x2="502" y2="126" stroke="#1E5F8C" opacity=".6"/>
+          <line x1="398" y1="132" x2="502" y2="132" stroke="#1E5F8C" opacity=".6"/>
+          <line x1="398" y1="138" x2="502" y2="138" stroke="#1E5F8C" opacity=".6"/>
+          <ellipse cx="450" cy="90" rx="54" ry="14" fill="#333a30" stroke="#151B13" stroke-width="1.4"/>
+          <ellipse cx="450" cy="178" rx="54" ry="14" fill="#22271f" stroke="#151B13" stroke-width="1.4"/>
+          <line x1="505" y1="124" x2="592" y2="72" stroke="#D98200" stroke-width="1" stroke-dasharray="5 4" opacity=".85"/>
+          <line x1="505" y1="128" x2="594" y2="104" stroke="#D98200" stroke-width="1" stroke-dasharray="5 4" opacity=".85"/>
+          <line x1="505" y1="132" x2="595" y2="136" stroke="#D98200" stroke-width="1" stroke-dasharray="5 4" opacity=".85"/>
+          <line x1="505" y1="136" x2="594" y2="170" stroke="#D98200" stroke-width="1" stroke-dasharray="5 4" opacity=".85"/>
+          <line x1="505" y1="140" x2="592" y2="202" stroke="#D98200" stroke-width="1" stroke-dasharray="5 4" opacity=".85"/>
+          <rect x="418" y="190" width="64" height="10" rx="2" fill="#262b24"/>
+          <text x="450" y="216" text-anchor="middle" font-size="9" fill="#4C5548">mounting base</text>
+          <text x="596" y="230" text-anchor="end" font-size="9" fill="#4C5548">16–128 beams</text>
+          <text x="596" y="241" text-anchor="end" font-size="9" fill="#4C5548">sweep as it spins</text>
+          <text x="450" y="258" text-anchor="middle" font-size="9" fill="#4C5548">the classic Velodyne / Ouster shape —</text>
+          <text x="450" y="270" text-anchor="middle" font-size="9" fill="#4C5548">this drum is the heart of many UAV pods</text>
+
+          <text x="750" y="22" text-anchor="middle" font-size="10" letter-spacing="1.5" fill="#151B13" font-weight="600">ON THE AIRCRAFT</text>
+          <ellipse cx="664" cy="60" rx="34" ry="4" fill="none" stroke="#4C5548" stroke-width="1.4"/>
+          <ellipse cx="836" cy="60" rx="34" ry="4" fill="none" stroke="#4C5548" stroke-width="1.4"/>
+          <rect x="656" y="60" width="16" height="8" rx="2" fill="#151B13"/>
+          <rect x="828" y="60" width="16" height="8" rx="2" fill="#151B13"/>
+          <line x1="716" y1="84" x2="664" y2="68" stroke="#262b24" stroke-width="5" stroke-linecap="round"/>
+          <line x1="784" y1="84" x2="836" y2="68" stroke="#262b24" stroke-width="5" stroke-linecap="round"/>
+          <ellipse cx="750" cy="86" rx="34" ry="14" fill="#262b24" stroke="#151B13" stroke-width="1.4"/>
+          <line x1="750" y1="72" x2="750" y2="44" stroke="#262b24" stroke-width="2.5"/>
+          <circle cx="750" cy="40" r="7" fill="#efe9d8" stroke="#151B13" stroke-width="1.2"/>
+          <text x="762" y="36" font-size="9" fill="#4C5548">GNSS antenna —</text>
+          <text x="762" y="47" font-size="9" fill="#4C5548">clean view of the sky</text>
+          <rect x="728" y="100" width="44" height="34" rx="8" fill="#2a2f28" stroke="#151B13" stroke-width="1.3"/>
+          <ellipse cx="750" cy="124" rx="14" ry="6" fill="#1E5F8C" opacity=".6"/>
+          <text x="612" y="112" font-size="9" fill="#4C5548">LiDAR pod</text>
+          <text x="612" y="123" font-size="9" fill="#4C5548">under the belly</text>
+          <line x1="668" y1="117" x2="726" y2="115" stroke="#4C5548" stroke-width="1"/>
+          <line x1="750" y1="134" x2="664" y2="250" stroke="#D98200" stroke-width="1" stroke-dasharray="4 4"/>
+          <line x1="750" y1="134" x2="702" y2="252" stroke="#D98200" stroke-width="1" stroke-dasharray="4 4"/>
+          <line x1="750" y1="134" x2="750" y2="254" stroke="#D98200" stroke-width="1" stroke-dasharray="4 4"/>
+          <line x1="750" y1="134" x2="798" y2="252" stroke="#D98200" stroke-width="1" stroke-dasharray="4 4"/>
+          <line x1="750" y1="134" x2="836" y2="250" stroke="#D98200" stroke-width="1" stroke-dasharray="4 4"/>
+          <line x1="612" y1="254" x2="888" y2="254" stroke="#151B13" stroke-width="1.5"/>
+          <circle cx="668" cy="246" r="6" fill="#2f4a26"/><circle cx="688" cy="243" r="7" fill="#2f4a26"/><circle cx="812" cy="246" r="6" fill="#2f4a26"/>
+          <circle cx="702" cy="252" r="1.6" fill="#B3157E"/><circle cx="726" cy="253" r="1.6" fill="#B3157E"/><circle cx="750" cy="253" r="1.6" fill="#B3157E"/><circle cx="774" cy="253" r="1.6" fill="#B3157E"/><circle cx="798" cy="252" r="1.6" fill="#B3157E"/>
+          <line x1="866" y1="134" x2="866" y2="252" stroke="#4C5548" stroke-dasharray="3 3"/>
+          <text x="860" y="196" text-anchor="end" font-size="9" fill="#4C5548">h (AGL)</text>
+          <line x1="664" y1="272" x2="836" y2="272" stroke="#4C5548"/>
+          <line x1="664" y1="267" x2="664" y2="277" stroke="#4C5548"/>
+          <line x1="836" y1="267" x2="836" y2="277" stroke="#4C5548"/>
+          <text x="750" y="290" text-anchor="middle" font-size="10" fill="#4C5548" font-family="IBM Plex Mono, monospace">swath = 2·h·tan(FOV/2)</text>
+          <circle cx="640" cy="312" r="2.4" fill="#2f4a26"/>
+          <text x="648" y="315" font-size="9" fill="#4C5548">canopy hits → DSM</text>
+          <circle cx="762" cy="312" r="2.4" fill="#B3157E"/>
+          <text x="770" y="315" font-size="9" fill="#4C5548">ground returns → DTM</text>
+        </svg>
+        <figcaption><b>FIELD REFERENCE</b> Left to right: a Zenmuse-L2-class gimballed pod (laser + RGB + IMU); the spinning multi-beam drum inside many scanners; and the full flying setup — GNSS antenna up top, pod below, its swath sweeping the ground. Tie this to the density calculator above.</figcaption>
+      </figure>
+    </div>
+
+    <div class="panel">
+      <div class="panel-t">Use cases — three jobs where LiDAR earns its money</div>
+      <figure class="fig" style="margin:0">
+        <svg viewBox="0 0 900 270" aria-label="Drawn examples of LiDAR use cases: powerline corridors, ground under forest, stockpile volumes">
+          <line x1="300" y1="30" x2="300" y2="248" stroke="#cfd4c3" stroke-dasharray="4 4"/>
+          <line x1="600" y1="30" x2="600" y2="248" stroke="#cfd4c3" stroke-dasharray="4 4"/>
+
+          <text x="150" y="20" text-anchor="middle" font-size="10" letter-spacing="1.5" fill="#151B13" font-weight="600">POWERLINE CORRIDORS</text>
+          <line x1="12" y1="210" x2="288" y2="210" stroke="#151B13" stroke-width="1.5"/>
+          <line x1="58" y1="210" x2="70" y2="100" stroke="#262b24" stroke-width="2"/>
+          <line x1="82" y1="210" x2="70" y2="100" stroke="#262b24" stroke-width="2"/>
+          <line x1="62" y1="178" x2="78" y2="178" stroke="#262b24" stroke-width="1.4"/>
+          <line x1="64" y1="150" x2="76" y2="150" stroke="#262b24" stroke-width="1.4"/>
+          <line x1="50" y1="110" x2="90" y2="110" stroke="#262b24" stroke-width="2.4"/>
+          <line x1="218" y1="210" x2="230" y2="100" stroke="#262b24" stroke-width="2"/>
+          <line x1="242" y1="210" x2="230" y2="100" stroke="#262b24" stroke-width="2"/>
+          <line x1="222" y1="178" x2="238" y2="178" stroke="#262b24" stroke-width="1.4"/>
+          <line x1="224" y1="150" x2="236" y2="150" stroke="#262b24" stroke-width="1.4"/>
+          <line x1="210" y1="110" x2="250" y2="110" stroke="#262b24" stroke-width="2.4"/>
+          <path d="M52 112 Q150 154 248 112" fill="none" stroke="#4C5548" stroke-width="1.2"/>
+          <path d="M88 112 Q150 162 212 112" fill="none" stroke="#4C5548" stroke-width="1.2"/>
+          <g fill="#D98200">
+            <circle cx="72" cy="122" r="1.5"/><circle cx="96" cy="132" r="1.5"/><circle cx="120" cy="142" r="1.5"/><circle cx="150" cy="147" r="1.5"/><circle cx="180" cy="142" r="1.5"/><circle cx="204" cy="132" r="1.5"/><circle cx="228" cy="122" r="1.5"/>
+            <circle cx="110" cy="146" r="1.5"/><circle cx="150" cy="156" r="1.5"/><circle cx="190" cy="146" r="1.5"/>
+          </g>
+          <circle cx="112" cy="200" r="10" fill="#2f4a26"/>
+          <circle cx="184" cy="201" r="9" fill="#2f4a26"/>
+          <circle cx="150" cy="190" r="18" fill="#2f4a26"/>
+          <circle cx="150" cy="180" r="23" fill="none" stroke="#B3157E" stroke-width="1.6" stroke-dasharray="4 3"/>
+          <text x="150" y="232" text-anchor="middle" font-size="9" fill="#B3157E">clearance breach flagged automatically</text>
+          <text x="150" y="246" text-anchor="middle" font-size="9" fill="#4C5548">wire-thin targets photogrammetry simply misses</text>
+
+          <text x="450" y="20" text-anchor="middle" font-size="10" letter-spacing="1.5" fill="#151B13" font-weight="600">GROUND UNDER FOREST</text>
+          <g fill="#2f4a26">
+            <circle cx="322" cy="140" r="2"/><circle cx="334" cy="128" r="2"/><circle cx="346" cy="136" r="2"/><circle cx="358" cy="122" r="2"/><circle cx="370" cy="132" r="2"/><circle cx="382" cy="120" r="2"/><circle cx="394" cy="130" r="2"/><circle cx="406" cy="118" r="2"/><circle cx="418" cy="128" r="2"/><circle cx="430" cy="122" r="2"/><circle cx="442" cy="132" r="2"/><circle cx="454" cy="120" r="2"/><circle cx="466" cy="128" r="2"/><circle cx="478" cy="118" r="2"/><circle cx="490" cy="130" r="2"/><circle cx="502" cy="122" r="2"/><circle cx="514" cy="132" r="2"/><circle cx="526" cy="120" r="2"/><circle cx="538" cy="130" r="2"/><circle cx="550" cy="124" r="2"/><circle cx="562" cy="134" r="2"/><circle cx="574" cy="126" r="2"/>
+            <circle cx="330" cy="150" r="1.6"/><circle cx="366" cy="148" r="1.6"/><circle cx="402" cy="146" r="1.6"/><circle cx="438" cy="150" r="1.6"/><circle cx="474" cy="144" r="1.6"/><circle cx="510" cy="150" r="1.6"/><circle cx="546" cy="146" r="1.6"/><circle cx="570" cy="152" r="1.6"/>
+          </g>
+          <text x="450" y="104" text-anchor="middle" font-size="9" fill="#2f4a26">first returns = canopy (DSM)</text>
+          <path d="M312 206 C348 196 378 212 415 202 C438 196 448 178 470 178 C492 178 500 198 522 202 C548 207 566 198 588 200" fill="none" stroke="#B3157E" stroke-width="1.7" stroke-dasharray="5 3"/>
+          <line x1="470" y1="184" x2="470" y2="214" stroke="#B3157E" stroke-width="1" stroke-dasharray="2 2"/>
+          <text x="470" y="228" text-anchor="middle" font-size="9" fill="#B3157E">buried structure revealed</text>
+          <text x="450" y="246" text-anchor="middle" font-size="9" fill="#4C5548">last returns = DTM: archaeology, flood &amp; drainage models</text>
+
+          <text x="750" y="20" text-anchor="middle" font-size="10" letter-spacing="1.5" fill="#151B13" font-weight="600">STOCKPILE VOLUMES</text>
+          <line x1="612" y1="210" x2="888" y2="210" stroke="#151B13" stroke-width="1.5"/>
+          <path d="M640 210 Q700 128 760 210 Z" fill="#cbbb90" stroke="#151B13" stroke-width="1.3"/>
+          <path d="M760 210 Q802 158 844 210 Z" fill="#cbbb90" stroke="#151B13" stroke-width="1.3"/>
+          <path d="M656 196 Q700 152 744 196" fill="none" stroke="#8a7a52" stroke-width="1"/>
+          <path d="M670 182 Q700 150 730 182" fill="none" stroke="#8a7a52" stroke-width="1"/>
+          <path d="M772 198 Q802 168 832 198" fill="none" stroke="#8a7a52" stroke-width="1"/>
+          <g fill="#D98200">
+            <circle cx="668" cy="188" r="1.4"/><circle cx="684" cy="168" r="1.4"/><circle cx="700" cy="160" r="1.4"/><circle cx="716" cy="168" r="1.4"/><circle cx="732" cy="188" r="1.4"/><circle cx="786" cy="188" r="1.4"/><circle cx="802" cy="174" r="1.4"/><circle cx="818" cy="188" r="1.4"/>
+          </g>
+          <line x1="700" y1="210" x2="700" y2="132" stroke="#4C5548" stroke-dasharray="3 3"/>
+          <text x="708" y="150" font-size="9" fill="#4C5548">h</text>
+          <text x="750" y="234" text-anchor="middle" font-size="9.5" fill="#4C5548" font-family="IBM Plex Mono, monospace">volume = Σ (cell area × Δh)</text>
+          <text x="750" y="250" text-anchor="middle" font-size="9" fill="#4C5548">daily quarry / coal-yard audits — nobody climbs the pile</text>
+        </svg>
+        <figcaption><b>USE CASES</b> Where LiDAR beats photogrammetry outright: measuring wires and their vegetation clearance, seeing bare earth beneath canopy, and fast repeat volume surveys.</figcaption>
+      </figure>
+    </div>
+  </section>
+
+  <!-- ================= 03 PROCESSING APPROACHES ================= -->
+  <section class="leg" id="l3">
+    <div class="leg-head"><div class="leg-no">WP 03</div><div>
+      <div class="leg-kicker">The pipeline</div><h2>Data Processing Approaches</h2></div></div>
+
+    <p class="lede">Raw UAV data is just gigabytes of photographs or laser echoes. Processing is the pipeline that turns them into <b>measurable geospatial products</b>: point clouds, surface models, orthomosaics and maps that survive in a GIS.</p>
+
+    <figure class="fig">
+      <svg viewBox="0 0 920 96" aria-label="Generic UAV data pipeline">
+        <g font-family="Saira Condensed,sans-serif" font-size="14" text-anchor="middle">
+          <rect x="10" y="26" width="120" height="42" fill="#fff" stroke="#151B13" stroke-width="1.5"/><text x="70" y="52">MISSION PLAN</text>
+          <rect x="164" y="26" width="120" height="42" fill="#fff" stroke="#151B13" stroke-width="1.5"/><text x="224" y="52">CAPTURE</text>
+          <rect x="318" y="26" width="130" height="42" fill="#fff" stroke="#151B13" stroke-width="1.5"/><text x="383" y="52">INGEST + QC</text>
+          <rect x="482" y="26" width="130" height="42" fill="#B3157E" stroke="#B3157E"/><text x="547" y="52" fill="#fff">PROCESS</text>
+          <rect x="646" y="26" width="120" height="42" fill="#fff" stroke="#151B13" stroke-width="1.5"/><text x="706" y="52">PRODUCTS</text>
+          <rect x="800" y="26" width="110" height="42" fill="#fff" stroke="#1E5F8C" stroke-width="1.5"/><text x="855" y="52" fill="#1E5F8C">GIS / CAD</text>
+          <g stroke="#4C5548" stroke-width="1.4" marker-end="none">
+            <path d="M130 47 L162 47"/><path d="M284 47 L316 47"/><path d="M448 47 L480 47"/><path d="M612 47 L644 47"/><path d="M766 47 L798 47"/>
+          </g>
+        </g>
+        <text x="383" y="86" text-anchor="middle" font-family="IBM Plex Mono,monospace" font-size="9" fill="#4C5548">back up raw data + flight logs BEFORE processing</text>
+      </svg>
+      <figcaption><b>FIG 03-A</b> The processing block is where the two big approaches diverge: photogrammetry (SfM–MVS from overlapping photos) and the LiDAR chain (trajectory → strips → classification).</figcaption>
+    </figure>
+
+    <div class="panel">
+      <div class="panel-t">Photogrammetry pipeline · SfM–MVS <small>Step through the stages</small></div>
+      <div class="ctl" id="sfmCtl"></div>
+      <div class="two">
+        <figure class="fig" style="margin:0"><svg id="sfmSvg" viewBox="0 0 440 240" aria-label="Structure from motion stage visualisation"></svg>
+        <figcaption><b>FIG 03-B</b> <span id="sfmCap">—</span></figcaption></figure>
+        <div class="detail step-desc" id="sfmDet"></div>
+      </div>
+    </div>
+
+    <div class="two">
+      <div class="panel">
+        <div class="panel-t">LiDAR processing chain</div>
+        <ul class="kl">
+          <li><b>1 · Trajectory = </b>post-process the GNSS + IMU log (PPK) into a precise flight path.</li>
+          <li><b>2 · Point generation = </b>combine trajectory + scanner angles/ranges → raw georeferenced cloud.</li>
+          <li><b>3 · Strip adjustment = </b>align overlapping flight lines; calibrate boresight angles.</li>
+          <li><b>4 · Filtering = </b>remove noise points (birds, multipath, air returns).</li>
+          <li><b>5 · Classification = </b>separate ground from vegetation and buildings (e.g. cloth-simulation filter, progressive TIN).</li>
+          <li><b>6 · Products = </b>DTM from ground class, DSM from first returns, contours, sections, CHM.</li>
+        </ul>
+      </div>
+      <div class="panel">
+        <div class="panel-t">The product family</div>
+        <table class="t"><thead><tr><th>Product</th><th>What it is</th></tr></thead><tbody>
+          <tr><td class="hl">Point cloud</td><td>Millions of XYZ(+attributes) points — the raw 3D truth</td></tr>
+          <tr><td class="hl">DSM</td><td>Digital Surface Model — top of everything (canopy, roofs)</td></tr>
+          <tr><td class="hl">DTM</td><td>Digital Terrain Model — bare earth only</td></tr>
+          <tr><td class="hl">DEM</td><td>Umbrella term for gridded elevation (DSM or DTM)</td></tr>
+          <tr><td class="hl">CHM</td><td>Canopy Height Model = DSM − DTM (vegetation height)</td></tr>
+          <tr><td class="hl">Orthomosaic</td><td>Distortion-free, map-accurate stitched image — measure on it</td></tr>
+          <tr><td class="hl">Mesh</td><td>Textured triangulated surface for visualisation / inspection</td></tr>
+        </tbody></table>
+        <div class="note"><b>One-liner.</b> CHM = DSM − DTM. If an exam gives you two of the three, it is asking for the subtraction.</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= 04 GEOREFERENCING ================= -->
+  <section class="leg" id="l4">
+    <div class="leg-head"><div class="leg-no">WP 04</div><div>
+      <div class="leg-kicker">Position truth</div><h2>Georeferencing Approach</h2></div></div>
+
+    <p class="lede">A beautiful orthomosaic sitting 3 m away from where the world actually is, is a picture — not a map. Georeferencing ties every pixel and point to a real coordinate reference system (CRS), and the method you choose sets the accuracy budget of the whole project.</p>
+
+    <div class="def">Georeferencing = assigning real-world coordinates (e.g. WGS-84 / UTM zone 44N for Nagpur) to image pixels or cloud points. <b>Indirect</b> = tie to measured ground points. <b>Direct</b> = trust a precisely corrected on-board position.</div>
+
+    <div class="panel">
+      <div class="panel-t">Method selector <small>Click to compare</small></div>
+      <div class="ctl" id="geoCtl"></div>
+      <div class="detail" id="geoDet"></div>
+      <div style="margin-top:14px" id="geoBars"></div>
+      <p class="mono" style="font-size:11px;color:var(--ink2);margin-top:6px">BAR = TYPICAL ABSOLUTE ACCURACY (LOG SCALE) · SHORTER IS BETTER</p>
+    </div>
+
+    <div class="two">
+      <div class="panel">
+        <div class="panel-t">GCP field craft</div>
+        <ul class="kl">
+          <li><b>What = </b>ground control points: targets visible from the air, surveyed with RTK GNSS or a total station to cm accuracy.</li>
+          <li><b>How many = </b>5–10 for a typical site; more for long corridors or large height variation.</li>
+          <li><b>Where = </b>spread to the edges <i>and</i> centre, at different elevations — never clustered in one corner.</li>
+          <li><b>Checkpoints = </b>extra surveyed points <i>not</i> used in processing — held back to independently report accuracy (RMSE).</li>
+        </ul>
+      </div>
+      <div class="panel">
+        <div class="panel-t">RTK vs PPK, in one breath</div>
+        <ul class="kl">
+          <li><b>RTK = </b>Real-Time Kinematic — correction stream (base station / NTRIP) applied in flight; needs a live radio/data link.</li>
+          <li><b>PPK = </b>Post-Processed Kinematic — raw GNSS logged on the drone and base, corrected after landing; immune to link dropouts, usually the more robust survey choice.</li>
+          <li><b>Both = </b>bring camera positions to 2–5 cm, cutting GCP needs to a few check points.</li>
+          <li><b>Detail = </b>the antenna–camera <i>lever arm</i> and precise exposure timestamps must be known, or the centimetres evaporate.</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-t">Hardware reference — control on the ground</div>
+      <figure class="fig" style="margin:0">
+        <svg viewBox="0 0 470 260" aria-label="Labelled drawing of a ground control point target mat and an RTK base station on a tripod">
+          <line x1="12" y1="210" x2="448" y2="210" stroke="#151B13" stroke-width="1.5"/>
+
+          <ellipse cx="114" cy="62" rx="17" ry="7" fill="#262b24" stroke="#151B13" stroke-width="1.2"/>
+          <ellipse cx="86" cy="52" rx="16" ry="3" fill="none" stroke="#4C5548" stroke-width="1.2"/>
+          <ellipse cx="142" cy="52" rx="16" ry="3" fill="none" stroke="#4C5548" stroke-width="1.2"/>
+          <line x1="100" y1="58" x2="86" y2="54" stroke="#262b24" stroke-width="3" stroke-linecap="round"/>
+          <line x1="128" y1="58" x2="142" y2="54" stroke="#262b24" stroke-width="3" stroke-linecap="round"/>
+          <line x1="114" y1="70" x2="62" y2="204" stroke="#4C5548" stroke-dasharray="3 3"/>
+          <line x1="114" y1="70" x2="168" y2="182" stroke="#4C5548" stroke-dasharray="3 3"/>
+
+          <path d="M58 206 L104 206 L114 194 L68 194 Z" fill="#151B13" stroke="#151B13"/>
+          <path d="M104 206 L150 206 L160 194 L114 194 Z" fill="#efe9d8" stroke="#151B13"/>
+          <path d="M114 194 L160 194 L170 182 L124 182 Z" fill="#151B13" stroke="#151B13"/>
+          <path d="M68 194 L114 194 L124 182 L78 182 Z" fill="#efe9d8" stroke="#151B13"/>
+          <circle cx="114" cy="194" r="2.6" fill="#B3157E"/>
+
+          <text x="14" y="132" font-size="11" font-weight="600" fill="#151B13">GCP target mat</text>
+          <text x="14" y="146" font-size="9" fill="#4C5548">50–80 cm iron-cross pattern —</text>
+          <text x="14" y="157" font-size="9" fill="#4C5548">unmistakable from altitude</text>
+          <text x="14" y="170" font-size="9" fill="#4C5548">centre surveyed to cm accuracy</text>
+          <line x1="80" y1="174" x2="98" y2="188" stroke="#4C5548" stroke-width="1"/>
+          <text x="14" y="236" font-size="9" fill="#4C5548">appears in many photos → pins the model down</text>
+
+          <line x1="340" y1="120" x2="310" y2="208" stroke="#262b24" stroke-width="2.5" stroke-linecap="round"/>
+          <line x1="340" y1="120" x2="368" y2="208" stroke="#262b24" stroke-width="2.5" stroke-linecap="round"/>
+          <line x1="340" y1="120" x2="346" y2="209" stroke="#262b24" stroke-width="2.5" stroke-linecap="round"/>
+          <line x1="340" y1="120" x2="340" y2="88" stroke="#262b24" stroke-width="2.5"/>
+          <circle cx="340" cy="78" r="12" fill="#d8d2c2" stroke="#151B13" stroke-width="1.3"/>
+          <ellipse cx="340" cy="67" rx="9" ry="4" fill="#efe9d8" stroke="#151B13" stroke-width="1.1"/>
+          <line x1="352" y1="74" x2="364" y2="56" stroke="#151B13" stroke-width="1.4"/>
+          <path d="M320 60 Q302 76 320 94" fill="none" stroke="#1E5F8C" stroke-width="1.5"/>
+          <path d="M308 52 Q284 76 308 102" fill="none" stroke="#1E5F8C" stroke-width="1.5" opacity=".65"/>
+          <path d="M296 44 Q266 76 296 110" fill="none" stroke="#1E5F8C" stroke-width="1.5" opacity=".4"/>
+          <text x="252" y="36" font-size="9" fill="#1E5F8C">RTK: corrections streamed</text>
+          <text x="252" y="47" font-size="9" fill="#1E5F8C">to the drone, live</text>
+          <line x1="333" y1="212" x2="347" y2="222" stroke="#B3157E" stroke-width="1.6"/>
+          <line x1="347" y1="212" x2="333" y2="222" stroke="#B3157E" stroke-width="1.6"/>
+          <text x="380" y="132" font-size="11" font-weight="600" fill="#151B13">Base</text>
+          <text x="380" y="146" font-size="9" fill="#4C5548">GNSS receiver</text>
+          <text x="380" y="157" font-size="9" fill="#4C5548">on a tripod, set</text>
+          <text x="380" y="168" font-size="9" fill="#4C5548">over a known point</text>
+          <text x="380" y="184" font-size="9" fill="#4C5548">PPK: just logs;</text>
+          <text x="380" y="195" font-size="9" fill="#4C5548">corrected after</text>
+          <text x="380" y="206" font-size="9" fill="#4C5548">landing</text>
+          
+        </svg>
+        <figcaption><b>FIELD REFERENCE</b> The two accuracy anchors from the selector above: a surveyed iron-cross GCP mat the camera can see, and a base-station receiver whose corrections (live = RTK, after landing = PPK) tighten the drone's own positions to centimetres.</figcaption>
+      </figure>
+    </div>
+  </section>
+
+  <!-- ================= 05 CLOUD ================= -->
+  <section class="leg" id="l5">
+    <div class="leg-head"><div class="leg-no">WP 05</div><div>
+      <div class="leg-kicker">Where the maths runs</div><h2>Cloud Computing Approaches</h2></div></div>
+
+    <p class="lede">A single survey can produce 20–100 GB of images and clouds, and dense matching is brutally parallel — perfect GPU work. The question is <b>where</b> that compute lives: on the drone, on your desk, or in a data centre.</p>
+
+    <div class="panel">
+      <div class="panel-t">Compute location trade-off <small>Click an approach</small></div>
+      <div class="ctl" id="cldCtl"></div>
+      <div class="detail" id="cldDet"></div>
+    </div>
+
+    <div class="two">
+      <div class="panel">
+        <div class="panel-t">Why teams choose cloud (SaaS)</div>
+        <ul class="kl">
+          <li><b>Elastic scale = </b>a 10,000-image job rents 50 GPUs for an hour instead of a week on one workstation.</li>
+          <li><b>No capex = </b>subscription replaces a ₹3–5 lakh GPU rig that ages in three years.</li>
+          <li><b>Collaboration = </b>results live at a URL: annotate, measure, share with the client the same day.</li>
+          <li><b>Pipelines = </b>automatic processing on upload, APIs, versioned projects.</li>
+        </ul>
+      </div>
+      <div class="panel">
+        <div class="panel-t">…and why they hesitate</div>
+        <ul class="kl">
+          <li><b>Bandwidth = </b>uploading 60 GB over a site 4G link can take longer than the processing.</li>
+          <li><b>Data governance = </b>survey data of critical infrastructure may not be allowed off-premises or out of country.</li>
+          <li><b>Recurring cost = </b>subscriptions outgrow a one-time licence for heavy continuous users.</li>
+          <li><b>Control = </b>fewer knobs than desktop software when a dataset misbehaves.</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-t">Cloud platforms you should be able to name</div>
+      <table class="t"><thead><tr><th>Platform</th><th>Flavour</th><th>Known for</th></tr></thead><tbody>
+        <tr><td class="hl">DroneDeploy</td><td>Full SaaS</td><td>Plan → fly → process → analytics in one web workflow</td></tr>
+        <tr><td class="hl">Pix4D Cloud</td><td>SaaS + desktop pair</td><td>Upload from Pix4Dcapture, share web 2D/3D outputs</td></tr>
+        <tr><td class="hl">Propeller Aero</td><td>SaaS (earthworks)</td><td>Volumes, cut/fill, progress tracking with AeroPoints</td></tr>
+        <tr><td class="hl">Esri Site Scan</td><td>SaaS</td><td>Direct integration with the ArcGIS ecosystem</td></tr>
+        <tr><td class="hl">WebODM Lightning</td><td>Hosted open source</td><td>OpenDroneMap processing without owning hardware</td></tr>
+      </tbody></table>
+    </div>
+  </section>
+
+  <!-- ================= 06 PHOTOGRAMMETRY SOFTWARE ================= -->
+  <section class="leg" id="l6">
+    <div class="leg-head"><div class="leg-no">WP 06</div><div>
+      <div class="leg-kicker">Toolchain I</div><h2>UAV Photogrammetry Software</h2></div></div>
+
+    <p class="lede">All of these implement the same SfM–MVS pipeline from WP 03 — they differ in accuracy reporting, automation, licensing and where they run.</p>
+
+    <div class="panel">
+      <div class="panel-t">The field</div>
+      <table class="t"><thead><tr><th>Software</th><th>Runs</th><th>Licence</th><th>Signature strengths</th></tr></thead><tbody>
+        <tr><td class="hl">Agisoft Metashape</td><td>Desktop</td><td>Paid (one-time)</td><td>Full survey control, Python scripting, research favourite</td></tr>
+        <tr><td class="hl">Pix4Dmapper / Pix4Dfields</td><td>Desktop + cloud</td><td>Subscription</td><td>Industry mapping standard; Fields = fast agriculture maps</td></tr>
+        <tr><td class="hl">DroneDeploy</td><td>Cloud</td><td>Subscription</td><td>Easiest end-to-end workflow, analytics dashboards</td></tr>
+        <tr><td class="hl">OpenDroneMap / WebODM</td><td>Desktop / server</td><td>Open source, free</td><td>Self-hosted, scriptable, zero licence cost</td></tr>
+        <tr><td class="hl">RealityCapture</td><td>Desktop (GPU)</td><td>Free (&lt;$1M revenue) / enterprise</td><td>Extremely fast dense meshes</td></tr>
+        <tr><td class="hl">DJI Terra</td><td>Desktop</td><td>Paid</td><td>Native DJI ecosystem; handles L1/L2 LiDAR + photos</td></tr>
+        <tr><td class="hl">Bentley iTwin Capture</td><td>Desktop + cloud</td><td>Paid</td><td>City/infrastructure scale reality meshes</td></tr>
+        <tr><td class="hl">Trimble Inpho</td><td>Desktop</td><td>Paid</td><td>Survey-grade aerial triangulation heritage</td></tr>
+      </tbody></table>
+    </div>
+
+    <div class="panel">
+      <div class="panel-t">How to choose (exam-ready criteria)</div>
+      <ul class="kl">
+        <li><b>Accuracy workflow = </b>GCP marking tools, checkpoint RMSE reports, camera calibration control.</li>
+        <li><b>Outputs = </b>orthomosaic, DSM/DTM, LAS cloud, mesh, contours — in formats your GIS accepts (GeoTIFF, LAS, SHP).</li>
+        <li><b>Scale = </b>desktop handles thousands of images with a strong GPU; cloud scales past that.</li>
+        <li><b>Cost model = </b>one-time vs subscription vs free open source — map to how often you actually fly.</li>
+      </ul>
+    </div>
+  </section>
+
+  <!-- ================= 07 LIDAR SOFTWARE ================= -->
+  <section class="leg" id="l7">
+    <div class="leg-head"><div class="leg-no">WP 07</div><div>
+      <div class="leg-kicker">Toolchain II</div><h2>LiDAR UAV Software</h2></div></div>
+
+    <p class="lede">LiDAR software earns its keep in three places: computing the trajectory, calibrating and aligning strips, and classifying ground from clutter. Visualisation is the easy part.</p>
+
+    <div class="panel">
+      <div class="panel-t">The field</div>
+      <table class="t"><thead><tr><th>Software</th><th>Licence</th><th>Role in the chain</th></tr></thead><tbody>
+        <tr><td class="hl">DJI Terra</td><td>Paid</td><td>Turnkey processing for Zenmuse L1/L2 — trajectory to coloured cloud</td></tr>
+        <tr><td class="hl">TerraSolid (TerraScan / TerraMatch)</td><td>Paid</td><td>Industry standard classification and strip calibration</td></tr>
+        <tr><td class="hl">LiDAR360 (GreenValley)</td><td>Paid</td><td>Classification, forestry metrics, powerline tools</td></tr>
+        <tr><td class="hl">YellowScan CloudStation</td><td>Paid</td><td>Vendor processing suite for YellowScan scanners</td></tr>
+        <tr><td class="hl">LAStools</td><td>Paid core / free parts</td><td>Blazing command-line tiling, ground filtering, DEMs</td></tr>
+        <tr><td class="hl">CloudCompare</td><td>Open source</td><td>Viewing, cloud-to-cloud distance (M3C2), editing — the free Swiss knife</td></tr>
+        <tr><td class="hl">PDAL</td><td>Open source</td><td>Scriptable point-cloud pipelines (the "GDAL of LiDAR")</td></tr>
+        <tr><td class="hl">Global Mapper (LiDAR module)</td><td>Paid</td><td>Affordable all-round GIS with cloud tools</td></tr>
+      </tbody></table>
+      <div class="note"><b>Pairing.</b> A common budget stack: vendor tool for trajectory → LAStools/PDAL for filtering and DEMs → CloudCompare for QC — with TerraSolid where deliverable standards demand it.</div>
+    </div>
+  </section>
+
+  <!-- ================= 08 IMAGE PROCESSING APPROACHES ================= -->
+  <section class="leg" id="l8">
+    <div class="leg-head"><div class="leg-no">WP 08</div><div>
+      <div class="leg-kicker">Entering the lab</div><h2>Image Processing Approaches</h2></div></div>
+
+    <p class="lede">From here to WP 15 we go inside a single image. A digital image is nothing mystical: a matrix of numbers. Every operation you will meet — filtering, edges, histograms, segmentation — is arithmetic on that matrix.</p>
+
+    <div class="def">A grayscale image is a function <span class="mono">f(x, y)</span> sampled on a grid: <span class="mono">rows × cols</span> pixels, each an intensity (0 = black … 255 = white for 8-bit). A colour image stacks three such matrices (channels).</div>
+
+    <div class="two">
+      <div class="panel">
+        <div class="panel-t">Three levels of processing</div>
+        <ul class="kl">
+          <li><b>Low level = </b>image → image. Denoising, contrast, sharpening (WP 11, 13).</li>
+          <li><b>Mid level = </b>image → features. Edges, contours, segments, keypoints (WP 12, 14).</li>
+          <li><b>High level = </b>features → meaning. "That blob is a vehicle" (WP 15, and deep learning beyond this unit).</li>
+        </ul>
+        <div class="panel-t" style="margin-top:16px">Operation families</div>
+        <ul class="kl">
+          <li><b>Point = </b>each output pixel depends only on the same input pixel (brightness, threshold).</li>
+          <li><b>Local = </b>depends on a neighbourhood (convolution filters, median).</li>
+          <li><b>Global = </b>depends on the whole image (histogram equalisation, Fourier).</li>
+          <li><b>Geometric = </b>moves pixels (resize, rotate, warp, orthorectification itself!).</li>
+        </ul>
+      </div>
+      <div class="panel">
+        <div class="panel-t">Lab · Radiometric resolution <small>Bit-depth, live</small></div>
+        <p style="font-size:14px">This is the synthetic aerial scene every lab below uses — a field with crop rows, a road, buildings, trees, a pond and two vehicles. Drag to quantise it:</p>
+        <div class="slider"><div class="field"><label>Bits per channel</label><input type="range" id="bitS" min="1" max="8" value="8"></div><output id="bitO" class="mono">8 bit</output></div>
+        <div class="lab">
+          <div class="cv"><canvas id="cvBitIn" width="252" height="168"></canvas><div class="cv-cap">Scene · 8-bit</div></div>
+          <div class="cv"><canvas id="cvBitOut" width="252" height="168"></canvas><div class="cv-cap" id="bitCap">Quantised</div></div>
+        </div>
+        <div class="reads">
+          <div class="read"><i>Levels / channel</i><b id="bitLv">256</b></div>
+          <div class="read"><i>Possible colours</i><b id="bitCol" style="font-size:18px">16.7 M</b></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= 09 READ / WRITE ================= -->
+  <section class="leg" id="l9">
+    <div class="leg-head"><div class="leg-no">WP 09</div><div>
+      <div class="leg-kicker">Computer vision I/O</div><h2>Reading &amp; Writing Images and Video</h2></div></div>
+
+    <p class="lede">OpenCV (<span class="mono">import cv2</span>) treats an image as a NumPy array — so everything you know about arrays (slicing, arithmetic, shape) applies directly to pictures.</p>
+
+    <div class="two">
+      <div class="panel">
+        <div class="panel-t">Images</div>
+<pre class="code no-abbr"><span class="k">import</span> cv2
+<span class="k">import</span> numpy <span class="k">as</span> np
+
+img = cv2.imread(<span class="s">"ortho.jpg"</span>, cv2.IMREAD_COLOR)   <span class="c"># 1 · default</span>
+gray = cv2.imread(<span class="s">"ortho.jpg"</span>, cv2.IMREAD_GRAYSCALE) <span class="c"># 0</span>
+raw  = cv2.imread(<span class="s">"ortho.png"</span>, cv2.IMREAD_UNCHANGED) <span class="c"># -1 · keep alpha/16-bit</span>
+
+<span class="k">if</span> img <span class="k">is</span> None:            <span class="c"># imread NEVER raises — it returns None</span>
+    <span class="k">raise</span> IOError(<span class="s">"file not found / unreadable"</span>)
+
+print(img.shape)            <span class="c"># (rows, cols, 3)  — height first!</span>
+print(img.dtype)            <span class="c"># uint8 → values 0–255</span>
+
+cv2.imshow(<span class="s">"view"</span>, img)
+cv2.waitKey(0)              <span class="c"># 0 = wait forever for a key</span>
+cv2.destroyAllWindows()
+
+cv2.imwrite(<span class="s">"out.png"</span>, img) <span class="c"># extension selects the codec</span>
+cv2.imwrite(<span class="s">"out.jpg"</span>, img, [cv2.IMWRITE_JPEG_QUALITY, 90])</pre>
+        <div class="note"><b>The BGR trap.</b> OpenCV loads channels as <b>B, G, R</b> — not RGB. Show an OpenCV image in Matplotlib without <span class="mono">cv2.cvtColor(img, cv2.COLOR_BGR2RGB)</span> and the drone's orange roof turns blue.</div>
+      </div>
+      <div class="panel">
+        <div class="panel-t">Video</div>
+<pre class="code no-abbr">cap = cv2.VideoCapture(<span class="s">"flight.mp4"</span>)   <span class="c"># or 0 = webcam / FPV feed</span>
+
+fps = cap.get(cv2.CAP_PROP_FPS)
+w   = <span class="k">int</span>(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
+h   = <span class="k">int</span>(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+
+fourcc = cv2.VideoWriter_fourcc(*<span class="s">"mp4v"</span>)
+out = cv2.VideoWriter(<span class="s">"annotated.mp4"</span>, fourcc, fps, (w, h))
+
+<span class="k">while</span> True:
+    ret, frame = cap.read()   <span class="c"># ret=False at end of file</span>
+    <span class="k">if not</span> ret:
+        <span class="k">break</span>
+    <span class="c"># ... process frame (any lab from WP 10–15) ...</span>
+    out.write(frame)
+    <span class="k">if</span> cv2.waitKey(1) == <span class="k">ord</span>(<span class="s">"q"</span>):
+        <span class="k">break</span>
+
+cap.release(); out.release(); cv2.destroyAllWindows()</pre>
+        <ul class="kl">
+          <li><b>A video is = </b>just a loop over images. Every image technique in this unit applies per frame.</li>
+          <li><b>fourcc = </b>4-character codec code ("mp4v", "XVID", "MJPG") — must match the container.</li>
+          <li><b>Release = </b>always free the capture and writer, or the file may end up corrupt.</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= 10 COLOR SPACES ================= -->
+  <section class="leg" id="l10">
+    <div class="leg-head"><div class="leg-no">WP 10</div><div>
+      <div class="leg-kicker">Live lab</div><h2>Exploring Color Space</h2></div></div>
+
+    <p class="lede">A colour space is a coordinate system for colour. RGB is how sensors capture and screens emit; HSV separates <i>what colour</i> from <i>how bright</i> — which is why segmentation and tracking live there.</p>
+
+    <div class="panel">
+      <div class="panel-t">Channel viewer <small>Rendered live from the scene</small></div>
+      <div class="ctl" id="chanCtl"></div>
+      <div class="lab">
+        <div class="cv"><canvas id="cvChanIn" width="252" height="168"></canvas><div class="cv-cap">Input · BGR scene</div></div>
+        <div class="cv"><canvas id="cvChanOut" width="252" height="168"></canvas><div class="cv-cap" id="chanCap">—</div></div>
+      </div>
+      <div class="detail" id="chanDet"></div>
+    </div>
+
+    <div class="two">
+      <div class="panel">
+        <div class="panel-t">The spaces that matter</div>
+        <ul class="kl">
+          <li><b>BGR / RGB = </b>additive device space. Intuitive, but brightness and colour are tangled across all three channels.</li>
+          <li><b>Grayscale = </b>one channel: <span class="mono">0.299R + 0.587G + 0.114B</span> (green dominates because eyes do).</li>
+          <li><b>HSV = </b>Hue (colour angle), Saturation (purity), Value (brightness). In OpenCV: <b>H ∈ 0–179</b> (degrees ÷ 2 to fit uint8!), S,V ∈ 0–255.</li>
+          <li><b>L*a*b* = </b>L = lightness, a/b = colour opponents. Perceptually uniform — CLAHE (WP 13) is applied to L so colours don't shift.</li>
+        </ul>
+<pre class="code no-abbr">hsv  = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
+gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+lab  = cv2.cvtColor(img, cv2.COLOR_BGR2LAB)
+
+<span class="c"># segment vegetation by hue (see WP 14):</span>
+mask = cv2.inRange(hsv, (35, 40, 40), (85, 255, 255))</pre>
+      </div>
+      <div class="panel">
+        <div class="panel-t">HSV mixer <small>Feel the axes</small></div>
+        <div class="slider"><div class="field"><label>H · hue (OpenCV 0–179)</label><input type="range" id="hsH" min="0" max="179" value="45"></div><output id="hsHo" class="mono">45</output></div>
+        <div class="slider"><div class="field"><label>S · saturation</label><input type="range" id="hsS" min="0" max="255" value="200"></div><output id="hsSo" class="mono">200</output></div>
+        <div class="slider"><div class="field"><label>V · value</label><input type="range" id="hsV" min="0" max="255" value="200"></div><output id="hsVo" class="mono">200</output></div>
+        <p style="margin:12px 0 6px"><span class="swatch" id="hsSw"></span> <span class="mono" id="hsRGB" style="margin-left:10px">—</span></p>
+        <p style="font-size:14px;color:var(--ink2)">Drop V with H fixed: the colour darkens but stays "the same colour". That independence is exactly why a green-crop mask in HSV survives a passing cloud, while an RGB mask breaks.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= 11 FILTERS ================= -->
+  <section class="leg" id="l11">
+    <div class="leg-head"><div class="leg-no">WP 11</div><div>
+      <div class="leg-kicker">Live lab</div><h2>Image Filters</h2></div></div>
+
+    <p class="lede">A filter slides a small matrix — a <b>kernel</b> — across the image; each output pixel is the weighted sum of its neighbourhood. This one idea (convolution) gives you blurring, sharpening, and (next waypoint) edge detection.</p>
+
+    <div class="panel">
+      <div class="panel-t">Filter bench <small>Computed live</small></div>
+      <div class="ctl" id="fltCtl"></div>
+      <div class="ctl"><button class="chip mag" id="fltNoise">Add salt &amp; pepper noise</button></div>
+      <div class="lab">
+        <div class="cv"><canvas id="cvFltIn" width="252" height="168"></canvas><div class="cv-cap" id="fltInCap">Input</div></div>
+        <div class="cv"><canvas id="cvFltOut" width="252" height="168"></canvas><div class="cv-cap" id="fltCap">—</div></div>
+      </div>
+      <div class="two">
+        <div class="detail" id="fltDet"></div>
+        <div><p class="mono" style="font-size:10.5px;letter-spacing:.12em;color:var(--ink2)">KERNEL</p><div id="fltKern"></div></div>
+      </div>
+      <div class="note"><b>Do the noise test.</b> Turn the noise on, then compare Gaussian vs median: Gaussian smears every speck into a grey smudge, the median simply votes them away. Nonlinear beats linear on impulse noise — a guaranteed exam point.</div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-t">OpenCV filter calls</div>
+<pre class="code no-abbr">blur   = cv2.blur(img, (5, 5))                     <span class="c"># mean / box filter</span>
+gauss  = cv2.GaussianBlur(img, (5, 5), sigmaX=1)   <span class="c"># weighted — standard pre-Canny</span>
+median = cv2.medianBlur(img, 5)                    <span class="c"># nonlinear — kills salt &amp; pepper</span>
+bilat  = cv2.bilateralFilter(img, 9, 75, 75)       <span class="c"># smooths, keeps edges (slow)</span>
+
+kernel  = np.array([[0,-1,0],[-1,5,-1],[0,-1,0]])  <span class="c"># sharpen</span>
+sharp   = cv2.filter2D(img, -1, kernel)            <span class="c"># any custom kernel</span></pre>
+    </div>
+  </section>
+
+  <!-- ================= 12 EDGES ================= -->
+  <section class="leg" id="l12">
+    <div class="leg-head"><div class="leg-no">WP 12</div><div>
+      <div class="leg-kicker">Live lab</div><h2>Edge Detection</h2></div></div>
+
+    <p class="lede">An edge is a fast change in intensity — a large <b>gradient</b>. Derivative kernels estimate that gradient; Canny then cleans it into thin, connected, trustworthy lines. Watch the road and roof outlines emerge from the field below.</p>
+
+    <div class="panel">
+      <div class="panel-t">Edge bench <small>Computed live</small></div>
+      <div class="ctl" id="edgCtl"></div>
+      <div class="two" id="edgSlWrap" style="grid-template-columns:1fr 1fr;gap:22px">
+        <div class="slider"><div class="field"><label>Low threshold</label><input type="range" id="edgLo" min="5" max="150" value="40"></div><output id="edgLoo" class="mono">40</output></div>
+        <div class="slider"><div class="field"><label>High threshold</label><input type="range" id="edgHi" min="20" max="255" value="100"></div><output id="edgHio" class="mono">100</output></div>
+      </div>
+      <div class="lab">
+        <div class="cv"><canvas id="cvEdgIn" width="252" height="168"></canvas><div class="cv-cap">Input · grayscale</div></div>
+        <div class="cv"><canvas id="cvEdgOut" width="252" height="168"></canvas><div class="cv-cap" id="edgCap">—</div></div>
+      </div>
+      <div class="two">
+        <div class="detail" id="edgDet"></div>
+        <div class="reads"><div class="read"><i>Edge pixels</i><b id="edgPct">— <s>%</s></b></div><div class="read"><i>Ratio hi:lo</i><b id="edgRat">—</b></div></div>
+      </div>
+    </div>
+
+    <div class="two">
+      <div class="panel">
+        <div class="panel-t">Canny in five steps</div>
+        <ul class="kl">
+          <li><b>1 · Smooth = </b>Gaussian blur — derivatives amplify noise, so remove it first.</li>
+          <li><b>2 · Gradient = </b>Sobel Gx, Gy → magnitude and direction per pixel.</li>
+          <li><b>3 · Non-maximum suppression = </b>keep only pixels that are the local peak across the gradient direction → 1-pixel-thin edges.</li>
+          <li><b>4 · Double threshold = </b>≥ high → strong edge; between low and high → weak candidate; below low → discarded.</li>
+          <li><b>5 · Hysteresis = </b>keep weak pixels only if they connect to a strong one — broken edges heal, isolated noise dies.</li>
+        </ul>
+      </div>
+      <div class="panel">
+        <div class="panel-t">Calls &amp; rules of thumb</div>
+<pre class="code no-abbr">gx = cv2.Sobel(gray, cv2.CV_64F, 1, 0, ksize=3)
+gy = cv2.Sobel(gray, cv2.CV_64F, 0, 1, ksize=3)
+lap = cv2.Laplacian(gray, cv2.CV_64F)      <span class="c"># 2nd derivative</span>
+
+edges = cv2.Canny(gray, 40, 100)           <span class="c"># low, high</span></pre>
+        <ul class="kl">
+          <li><b>Threshold ratio = </b>keep high : low around 2:1 to 3:1 (Canny's own advice).</li>
+          <li><b>Laplacian = </b>one kernel, finds edges of any orientation, but noise-hungry — pair with Gaussian ("LoG").</li>
+          <li><b>Why CV_64F = </b>gradients go negative; uint8 would silently clip them.</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= 13 HISTOGRAM + CLAHE ================= -->
+  <section class="leg" id="l13">
+    <div class="leg-head"><div class="leg-no">WP 13</div><div>
+      <div class="leg-kicker">Live lab</div><h2>Histogram, Equalisation &amp; CLAHE</h2></div></div>
+
+    <p class="lede">A histogram is the census of an image: how many pixels sit at each brightness. Hazy aerial imagery piles its pixels into a narrow band — equalisation spreads them out, and CLAHE does it <b>locally, with a clip</b> so noise isn't amplified.</p>
+
+    <div class="panel">
+      <div class="panel-t">Contrast bench <small>The scene, deliberately hazed — fix it</small></div>
+      <div class="ctl" id="hstCtl"></div>
+      <div class="two" id="hstSlWrap" style="grid-template-columns:1fr 1fr;gap:22px">
+        <div class="slider"><div class="field"><label>CLAHE clip limit</label><input type="range" id="hstClip" min="10" max="60" value="25"></div><output id="hstClipo" class="mono">2.5</output></div>
+        <div class="slider"><div class="field"><label>CLAHE tile grid</label><input type="range" id="hstTile" min="2" max="8" value="4"></div><output id="hstTileo" class="mono">4 × 4</output></div>
+      </div>
+      <div class="lab">
+        <div class="cv"><canvas id="cvHstIn" width="252" height="168"></canvas><div class="cv-cap">Input · low-contrast (hazy)</div></div>
+        <div class="cv"><canvas id="cvHstOut" width="252" height="168"></canvas><div class="cv-cap" id="hstCap">—</div></div>
+      </div>
+      <div class="cv" style="margin-top:2px"><canvas id="cvHstPlot" width="504" height="110" style="image-rendering:auto"></canvas><div class="cv-cap">Histogram of output · magenta = counts · blue line = cumulative (CDF)</div></div>
+      <div class="detail" id="hstDet"></div>
+    </div>
+
+    <div class="two">
+      <div class="panel">
+        <div class="panel-t">Global equalisation vs CLAHE</div>
+        <ul class="kl">
+          <li><b>equalizeHist = </b>one mapping for the whole image, built from the global CDF. Great when the whole frame is uniformly dull; can blow out skies and amplify flat-area noise.</li>
+          <li><b>CLAHE = </b>Contrast-Limited Adaptive Histogram Equalisation. The image is split into tiles (default 8×8); each tile gets its own mapping; the <b>clip limit</b> caps any histogram bin before the CDF is built, and clipped counts are redistributed — limiting noise gain. Tile mappings are blended by bilinear interpolation, so no blocky seams.</li>
+          <li><b>Colour rule = </b>never equalise B, G, R separately (colours shift). Convert to LAB, enhance L only, convert back.</li>
+        </ul>
+      </div>
+      <div class="panel">
+        <div class="panel-t">Calls</div>
+<pre class="code no-abbr">hist = cv2.calcHist([gray], [0], None, [256], [0, 256])
+
+eq = cv2.equalizeHist(gray)               <span class="c"># global</span>
+
+clahe = cv2.createCLAHE(clipLimit=2.5,
+                        tileGridSize=(8, 8))
+better = clahe.apply(gray)                <span class="c"># local, clipped</span>
+
+<span class="c"># colour-safe version:</span>
+lab = cv2.cvtColor(img, cv2.COLOR_BGR2LAB)
+l, a, b = cv2.split(lab)
+lab = cv2.merge((clahe.apply(l), a, b))
+out = cv2.cvtColor(lab, cv2.COLOR_LAB2BGR)</pre>
+        <div class="note"><b>In the lab above,</b> raise the clip limit and watch texture (and noise) intensify; raise the tile count and watch enhancement become more local. That is the entire CLAHE trade-off.</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= 14 CONTOURS + SEGMENTATION ================= -->
+  <section class="leg" id="l14">
+    <div class="leg-head"><div class="leg-no">WP 14</div><div>
+      <div class="leg-kicker">Live lab</div><h2>Contours &amp; Image Segmentation</h2></div></div>
+
+    <p class="lede">Segmentation partitions an image into meaningful regions; contours are the traced boundaries of those regions. Together they turn "pixels" into "objects you can count, measure and locate" — the heart of automated UAV analysis.</p>
+
+    <div class="panel">
+      <div class="panel-t">Threshold &amp; contour bench <small>Find the bright objects — road, roofs, vehicles</small></div>
+      <div class="ctl" id="segCtl"></div>
+      <div class="slider"><div class="field"><label>Threshold T (binary: pixel &gt; T → white)</label><input type="range" id="segT" min="0" max="255" value="170"></div><output id="segTo" class="mono">170</output></div>
+      <div class="lab">
+        <div class="cv"><canvas id="cvSegIn" width="252" height="168"></canvas><div class="cv-cap">Input · grayscale</div></div>
+        <div class="cv"><canvas id="cvSegOut" width="252" height="168"></canvas><div class="cv-cap">Binary mask + contours (magenta) + boxes (blue)</div></div>
+      </div>
+      <div class="reads">
+        <div class="read good"><i>Contours found</i><b id="segN">—</b></div>
+        <div class="read"><i>Largest area</i><b id="segA">— <s>px</s></b></div>
+        <div class="read"><i>Foreground</i><b id="segF">— <s>%</s></b></div>
+        <div class="read warn"><i>Otsu suggests</i><b id="segOt">T = —</b></div>
+      </div>
+      <div class="note"><b>Try it.</b> Press <i>Use Otsu</i> — it computes the threshold that best separates the histogram's two populations. Then drag T to extremes and watch objects merge or vanish: segmentation quality <i>is</i> threshold quality.</div>
+    </div>
+
+    <div class="two">
+      <div class="panel">
+        <div class="panel-t">Segmentation approaches</div>
+        <ul class="kl">
+          <li><b>Global threshold = </b><span class="mono">cv2.threshold(gray, T, 255, cv2.THRESH_BINARY)</span>; add <span class="mono">+ cv2.THRESH_OTSU</span> to pick T automatically from a bimodal histogram.</li>
+          <li><b>Adaptive threshold = </b>a different T per neighbourhood — for uneven illumination across a frame.</li>
+          <li><b>Colour segmentation = </b><span class="mono">cv2.inRange(hsv, lo, hi)</span> — the vegetation mask from WP 10.</li>
+          <li><b>Watershed = </b>treats gradient as terrain and "floods" from markers — separates touching objects.</li>
+          <li><b>GrabCut = </b>iterative graph-cut foreground extraction from a rough rectangle.</li>
+          <li><b>K-means = </b>cluster pixels by colour into k segments.</li>
+        </ul>
+      </div>
+      <div class="panel">
+        <div class="panel-t">Contour toolkit</div>
+<pre class="code no-abbr">_, binary = cv2.threshold(gray, 0, 255,
+        cv2.THRESH_BINARY + cv2.THRESH_OTSU)
+
+cnts, hier = cv2.findContours(binary,
+        cv2.RETR_EXTERNAL,          <span class="c"># outermost only (RETR_TREE = nested)</span>
+        cv2.CHAIN_APPROX_SIMPLE)    <span class="c"># compress straight runs</span>
+
+<span class="k">for</span> c <span class="k">in</span> cnts:
+    A = cv2.contourArea(c)
+    P = cv2.arcLength(c, True)
+    x, y, w, h = cv2.boundingRect(c)
+    M = cv2.moments(c)              <span class="c"># centroid = (M10/M00, M01/M00)</span>
+    poly = cv2.approxPolyDP(c, 0.02*P, True)
+
+cv2.drawContours(img, cnts, -1, (0,0,255), 2)</pre>
+        <ul class="kl">
+          <li><b>Golden rule = </b>findContours wants a <b>binary</b> image — threshold or Canny first.</li>
+          <li><b>UAV uses = </b>counting trees/panels, measuring stockpile footprints, locating landing pads by shape.</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= 15 HAAR ================= -->
+  <section class="leg" id="l15">
+    <div class="leg-head"><div class="leg-no">WP 15</div><div>
+      <div class="leg-kicker">Detection</div><h2>Haar Cascade</h2></div></div>
+
+    <p class="lede">The Viola–Jones Haar cascade (2001) made real-time object detection possible on plain CPUs — which is why it still matters on compute-starved UAV companion boards. Its three tricks: rectangle features, the integral image, and a cascade that rejects boring windows early.</p>
+
+    <div class="two">
+      <div class="panel">
+        <div class="panel-t">Trick 1 &amp; 2 · Features + integral image</div>
+        <figure class="fig" style="margin:0 0 12px">
+          <svg viewBox="0 0 430 120" aria-label="Haar-like features: edge, line and four-rectangle patterns">
+            <g stroke="#151B13" stroke-width="1.2">
+              <rect x="16" y="22" width="38" height="64" fill="#151B13"/><rect x="54" y="22" width="38" height="64" fill="#fff"/>
+              <rect x="140" y="22" width="26" height="64" fill="#fff"/><rect x="166" y="22" width="26" height="64" fill="#151B13"/><rect x="192" y="22" width="26" height="64" fill="#fff"/>
+              <rect x="266" y="22" width="34" height="32" fill="#151B13"/><rect x="300" y="22" width="34" height="32" fill="#fff"/>
+              <rect x="266" y="54" width="34" height="32" fill="#fff"/><rect x="300" y="54" width="34" height="32" fill="#151B13"/>
+              <rect x="368" y="22" width="46" height="30" fill="#fff"/><rect x="368" y="52" width="46" height="34" fill="#151B13"/>
+            </g>
+            <g font-family="IBM Plex Mono,monospace" font-size="9" fill="#4C5548" text-anchor="middle">
+              <text x="54" y="104">EDGE</text><text x="179" y="104">LINE</text><text x="300" y="104">FOUR-RECT</text><text x="391" y="104">EDGE (H)</text>
+            </g>
+          </svg>
+          <figcaption><b>FIG 15-A</b> A Haar feature's value = (sum of pixels under white) − (sum under black). Eyes are darker than cheeks; a line feature across the eye band fires strongly.</figcaption>
+        </figure>
+        <ul class="kl">
+          <li><b>Integral image = </b>each cell stores the sum of everything above-left. Any rectangle's sum then costs exactly <b>4 lookups</b> — so a 24×24 window can evaluate 160,000+ candidate features cheaply.</li>
+          <li><b>AdaBoost = </b>picks the few thousand most discriminative features and weights them into strong stage classifiers.</li>
+        </ul>
+      </div>
+      <div class="panel">
+        <div class="panel-t">Trick 3 · The cascade <small>Interactive funnel</small></div>
+        <p style="font-size:14px">A sliding window scans every position and scale. Almost all windows are sky and grass — early cheap stages throw them out; only survivors face the expensive later stages.</p>
+        <div class="slider"><div class="field"><label>Candidate windows scanned</label><input type="range" id="haarW" min="3" max="6" step="0.05" value="5"></div><output id="haarWo" class="mono">100 k</output></div>
+        <div class="slider"><div class="field"><label>Rejection per stage</label><input type="range" id="haarR" min="30" max="70" value="50"></div><output id="haarRo" class="mono">50%</output></div>
+        <div class="funnel" id="haarFun"></div>
+        <div class="reads">
+          <div class="read good"><i>Reach final stage</i><b id="haarSurv">—</b></div>
+          <div class="read"><i>Work saved</i><b id="haarSave">— <s>%</s></b></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="two">
+      <div class="panel">
+        <div class="panel-t">Using a pretrained cascade</div>
+<pre class="code no-abbr">face = cv2.CascadeClassifier(
+    cv2.data.haarcascades + <span class="s">"haarcascade_frontalface_default.xml"</span>)
+
+gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+hits = face.detectMultiScale(gray,
+        scaleFactor=1.1,     <span class="c"># image shrink step between scales</span>
+        minNeighbors=5,      <span class="c"># overlapping hits needed → fewer false +</span>
+        minSize=(30, 30))
+
+<span class="k">for</span> (x, y, w, h) <span class="k">in</span> hits:
+    cv2.rectangle(frame, (x, y), (x+w, y+h), (255, 0, 0), 2)</pre>
+        <ul class="kl">
+          <li><b>scaleFactor = </b>smaller (1.05) = finds more sizes, slower; larger (1.3) = faster, may skip.</li>
+          <li><b>minNeighbors = </b>raise to suppress false positives, lower to catch difficult targets.</li>
+          <li><b>Shipped models = </b>frontal face, eyes, full body, smile — and you can train custom cascades (e.g. cars) from positive/negative samples.</li>
+        </ul>
+      </div>
+      <div class="panel">
+        <div class="panel-t">Verdict for UAV work</div>
+        <ul class="kl">
+          <li><b>Pros = </b>real-time on CPU, tiny model files (XML), no GPU — ideal for onboard person/vehicle spotting in search-and-rescue video.</li>
+          <li><b>Cons = </b>mostly frontal/upright targets, sensitive to rotation and lighting, more false positives than modern detectors.</li>
+          <li><b>Context = </b>superseded in accuracy by HOG+SVM and deep networks (YOLO, SSD) — but it remains the canonical example of classical, explainable detection, and the exam's favourite.</li>
+        </ul>
+        <div class="note"><b>Pipeline echo.</b> Notice the whole unit reassembles here: read frames (WP 09) → grayscale (WP 10) → maybe CLAHE (WP 13) → detect (WP 15) → draw and write video (WP 09).</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= 16 REVISION ================= -->
+  <section class="leg" id="l16">
+    <div class="leg-head"><div class="leg-no">WP 16</div><div>
+      <div class="leg-kicker">Approach &amp; landing</div><h2>Rapid Revision &amp; Self-Check</h2></div></div>
+
+    <div class="panel">
+      <div class="panel-t">One-line recall</div>
+      <ul class="kl">
+        <li><b>Remote sensing = </b>measuring reflected/emitted EM energy from a distance; passive (sun/heat) vs active (LiDAR, radar).</li>
+        <li><b>Four resolutions = </b>spatial (GSD), spectral (bands), radiometric (bit depth), temporal (revisit).</li>
+        <li><b>NDVI = </b>(NIR − Red) / (NIR + Red); dense healthy vegetation ≳ 0.6.</li>
+        <li><b>LiDAR range = </b>R = c·Δt/2; multiple returns per pulse; last return ≈ ground → DTM under canopy.</li>
+        <li><b>Point density = </b>PRR / (speed × swath), swath = 2·h·tan(FOV/2); stored as LAS/LAZ with class codes (2 = ground, 6 = building).</li>
+        <li><b>SfM–MVS = </b>features → matching → bundle adjustment (sparse + poses) → dense cloud → mesh/DSM → orthomosaic.</li>
+        <li><b>CHM = </b>DSM − DTM.</li>
+        <li><b>Georeferencing = </b>indirect (GCPs) vs direct (RTK live / PPK after landing); checkpoints report RMSE honestly.</li>
+        <li><b>Cloud choice = </b>edge (real-time, tiny), workstation (control, capex), cloud SaaS (elastic, upload-bound), hybrid.</li>
+        <li><b>OpenCV I/O = </b>imread returns a BGR NumPy array (None on failure); video = VideoCapture read-loop + VideoWriter(fourcc).</li>
+        <li><b>HSV = </b>hue 0–179 in OpenCV; segment colour with inRange; CLAHE goes on L of LAB.</li>
+        <li><b>Filters = </b>Gaussian for general smoothing; median for salt &amp; pepper; filter2D for custom kernels like sharpen.</li>
+        <li><b>Canny = </b>smooth → gradient → non-max suppression → double threshold (≈1:2–1:3) → hysteresis.</li>
+        <li><b>CLAHE = </b>tiled equalisation + clip limit + bilinear blending — local contrast without runaway noise.</li>
+        <li><b>Contours = </b>findContours on a binary image; area/perimeter/boundingRect/moments per contour.</li>
+        <li><b>Haar = </b>rectangle features + integral image (4 lookups) + AdaBoost + attentional cascade; detectMultiScale(scaleFactor, minNeighbors).</li>
+      </ul>
+    </div>
+
+    <div class="panel">
+      <div class="panel-t">Self-check — 12 questions <small><span id="score">0 / 12</span></small></div>
+      <div id="quiz"></div>
+      <div class="ctl" style="margin-top:14px"><button class="chip mag" id="qReset">Reset quiz</button></div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-t">Likely long-answer questions</div>
+      <ul class="kl">
+        <li>Differentiate passive and active remote sensing. Explain the four types of resolution with UAV-relevant examples.</li>
+        <li>Explain the working principle of LiDAR. How do multiple returns enable a DTM under vegetation? List the attributes stored per point in a LAS file.</li>
+        <li>Describe the complete photogrammetric processing pipeline (SfM–MVS) from raw images to orthomosaic, naming the intermediate products.</li>
+        <li>Compare DSM, DTM, DEM and CHM with a neat sketch.</li>
+        <li>Explain direct and indirect georeferencing. Compare GCP-only, RTK and PPK workflows on accuracy, equipment and robustness.</li>
+        <li>Discuss cloud computing approaches for UAV data processing, with advantages, limitations and two example platforms.</li>
+        <li>Compare any four UAV photogrammetry software packages; state selection criteria. Repeat for LiDAR software.</li>
+        <li>Write OpenCV code to read a video, convert frames to grayscale, and save the result. Explain each call.</li>
+        <li>Explain histogram equalisation and CLAHE. Why is CLAHE preferred for aerial imagery, and why is it applied on the L channel?</li>
+        <li>Describe the Canny edge detection algorithm step by step. Compare it with Sobel and Laplacian.</li>
+        <li>What is image segmentation? Explain thresholding (including Otsu), inRange colour segmentation and watershed; show how contours are extracted and measured.</li>
+        <li>Explain the Viola–Jones Haar cascade: Haar features, integral image, AdaBoost and the cascade structure, with the role of scaleFactor and minNeighbors.</li>
+      </ul>
+    </div>
+
+    <div class="panel">
+      <div class="panel-t">Glossary <small>Click any dotted term anywhere on the page</small></div>
+      <input class="search" id="glossQ" type="search" placeholder="Filter terms — try 'kinematic' or 'histogram'">
+      <div class="gloss no-abbr" id="gloss"></div>
+    </div>
+  </section>
+
+  <!-- ================= KEY TAKEAWAYS ================= -->
+  <section class="leg" id="l17">
+    <div class="leg-head"><div class="leg-no">ARR</div><div>
+      <div class="leg-kicker">Arrival · what you carry off the aircraft</div><h2>Key Takeaways</h2></div></div>
+
+    <div class="headline">
+      <h3>If you remember only one thing</h3>
+      <p>Data collection and processing are one continuous chain of custody. The sensor decides what physics you record, georeferencing decides whether it is a <b>map or merely a picture</b>, the pipeline decides what products exist — and every OpenCV operation afterwards is just disciplined arithmetic on a matrix whose numbers you now know how to trust.</p>
+    </div>
+
+    <div class="tk">
+      <div class="tk-item"><i>01</i><div><h4>Sensors are physics choices</h4>
+        <p>RGB, multispectral, hyperspectral and thermal read reflected or emitted energy (passive); LiDAR and radar bring their own (active). Choose the band that carries your signal — NIR for vegetation vigour, TIR for heat, laser for structure.</p></div></div>
+
+      <div class="tk-item"><i>02</i><div><h4>Say which resolution you mean</h4>
+        <p>Spatial, spectral, radiometric, temporal. A UAV wins on spatial (cm GSD) and temporal (fly on demand); satellites win on coverage and spectral breadth.</p></div></div>
+
+      <div class="tk-item"><i>03</i><div><h4>LiDAR measures, photogrammetry infers</h4>
+        <p>Each LiDAR point is a direct range measurement, georeferenced by GNSS+IMU — texture and lighting are irrelevant, and last returns find ground under canopy. Photogrammetry reconstructs from image matching and lives or dies on texture and overlap.</p></div></div>
+
+      <div class="tk-item"><i>04</i><div><h4>Density is a budget, not a wish</h4>
+        <p>Points per square metre = pulse rate divided by (speed × swath). Fly lower and slower for powerlines; higher and faster for districts. You cannot have density and coverage from the same battery.</p></div></div>
+
+      <div class="tk-item"><i>05</i><div><h4>Know the SfM stages in order</h4>
+        <p>Features → matches → bundle adjustment (poses + sparse cloud) → dense MVS → mesh/DSM → orthomosaic. Georeferencing enters via GCP marks or RTK/PPK camera positions before densification.</p></div></div>
+
+      <div class="tk-item"><i>06</i><div><h4>CHM = DSM − DTM</h4>
+        <p>Surface minus terrain equals what grows or stands on the terrain. Three products, one subtraction, endless exam questions.</p></div></div>
+
+      <div class="tk-item"><i>07</i><div><h4>Accuracy has to be proven</h4>
+        <p>GCPs constrain the solution; independent checkpoints report RMSE. RTK corrects in flight, PPK after landing — PPK forgives link dropouts, which is why surveyors love it.</p></div></div>
+
+      <div class="tk-item"><i>08</i><div><h4>Compute placement is a trade</h4>
+        <p>Edge gives real-time reaction with tiny power; workstations give control; cloud gives elastic GPUs and collaboration but demands bandwidth and trust. Hybrid triages on board and crunches in the data centre.</p></div></div>
+
+      <div class="tk-item"><i>09</i><div><h4>Software names win easy marks</h4>
+        <p>Photogrammetry: Metashape, Pix4D, DroneDeploy, OpenDroneMap, RealityCapture. LiDAR: DJI Terra, TerraSolid, LiDAR360, LAStools, CloudCompare, PDAL. Know one open-source option in each list.</p></div></div>
+
+      <div class="tk-item"><i>10</i><div><h4>An image is a matrix — and it's BGR</h4>
+        <p>imread returns a uint8 NumPy array, channels ordered blue-green-red, shape (rows, cols, 3), None on failure. Video is a loop of such matrices at some fps.</p></div></div>
+
+      <div class="tk-item"><i>11</i><div><h4>Pick the space for the job</h4>
+        <p>HSV separates colour from brightness — masks survive lighting changes. LAB separates lightness — CLAHE goes on L. Gray is enough for edges, contours and Haar.</p></div></div>
+
+      <div class="tk-item"><i>12</i><div><h4>Match the filter to the noise</h4>
+        <p>Gaussian for general smoothing before derivatives; median for salt &amp; pepper; bilateral when edges must survive. Sharpening is just a kernel with a positive centre and negative ring.</p></div></div>
+
+      <div class="tk-item"><i>13</i><div><h4>Canny is a pipeline, not a kernel</h4>
+        <p>Smooth, differentiate, thin (non-max suppression), double-threshold, connect (hysteresis). The 2–3× threshold ratio and the hysteresis step are what make its edges clean.</p></div></div>
+
+      <div class="tk-item"><i>14</i><div><h4>Binary first, then contours</h4>
+        <p>Threshold (Otsu for bimodal, adaptive for uneven light, inRange for colour) turns the image binary; findContours then hands you countable, measurable objects — area, perimeter, centroid, bounding box.</p></div></div>
+
+      <div class="tk-item"><i>15</i><div><h4>The cascade spends effort where it matters</h4>
+        <p>Haar features cost four integral-image lookups; AdaBoost selects them; the cascade rejects empty windows in the first cheap stages. That asymmetry — most of the frame is nothing — is why it runs in real time on a drone's CPU.</p></div></div>
+    </div>
+
+    <div class="foot no-abbr">
+      <span>UNIT II · UAV DATA COLLECTION &amp; PROCESSING METHODS</span>
+      <span>16 WAYPOINTS · 8 LIVE LABS · ALL PROCESSING RUNS IN YOUR BROWSER</span>
+      <span>FLY THE ROUTE AGAIN BEFORE THE EXAM</span>
+    </div>
+  </section>
+
+  </main>
+</div>
+<script>
+(function(){
+"use strict";
+const $=(s,r)=>(r||document).querySelector(s), $$=(s,r)=>[...(r||document).querySelectorAll(s)];
+const fmt=(n,d)=>Number(n).toFixed(d===undefined?1:d);
+
+/* ---------- hero waypoints ---------- */
+const wpPts=[[50,315],[109,265],[168,295],[227,225],[286,258],[345,188],[404,222],[463,152],[522,190],[581,124],[640,162],[699,98],[758,140],[817,80],[876,118],[930,58]];
+const wpNames=["Remote sensing","LiDAR data","Processing","Georeferencing","Cloud computing","Photogrammetry SW","LiDAR SW","Image processing","Read & write","Color spaces","Filters","Edge detection","Histogram + CLAHE","Contours","Haar cascade","Revision"];
+const NS="http://www.w3.org/2000/svg";
+const wpsG=$("#wps");
+wpPts.forEach((p,i)=>{
+  const g=document.createElementNS(NS,"g");
+  g.setAttribute("class","wp"); g.setAttribute("tabindex","0"); g.setAttribute("role","link");
+  g.setAttribute("aria-label","Waypoint "+(i+1)+": "+wpNames[i]);
+  g.innerHTML='<circle class="hit" cx="'+p[0]+'" cy="'+p[1]+'" r="12" fill="#F6F7F0" fill-opacity=".01"/>'+
+    '<circle cx="'+p[0]+'" cy="'+p[1]+'" r="6.5" fill="none" stroke="#151B13" stroke-width="1.6"/>'+
+    '<circle cx="'+p[0]+'" cy="'+p[1]+'" r="2.4" fill="#B3157E"/>'+
+    '<text x="'+p[0]+'" y="'+(p[1]-13)+'" text-anchor="middle" font-family="IBM Plex Mono,monospace" font-size="9.5" fill="#151B13">'+String(i+1).padStart(2,"0")+'</text>';
+  const go=()=>{const el=document.getElementById("l"+(i+1)); if(el) el.scrollIntoView({block:"start"});};
+  g.addEventListener("click",go);
+  g.addEventListener("keydown",e=>{if(e.key==="Enter"||e.key===" "){e.preventDefault();go();}});
+  wpsG.appendChild(g);
+});
+
+/* ---------- rail + progress ---------- */
+const legs=$$(".leg"), links=$$("#rail a");
+function onScroll(){
+  const y=window.scrollY+140; let idx=0;
+  legs.forEach((l,i)=>{ if(l.offsetTop<=y) idx=i; });
+  links.forEach((a,i)=>a.classList.toggle("on",i===idx));
+  const d=document.documentElement;
+  const p=Math.min(100,Math.max(0,(window.scrollY/(d.scrollHeight-d.clientHeight))*100));
+  $("#progFill").style.width=p+"%"; $("#progTxt").textContent=Math.round(p)+"%";
+}
+window.addEventListener("scroll",onScroll,{passive:true}); onScroll();
+
+/* hamburger drawer */
+const railEl=$("#rail"),hamEl=$("#ham"),railBg=$("#railBg");
+function railSet(open){
+  railEl.classList.toggle("open",open);
+  hamEl.classList.toggle("open",open);
+  railBg.classList.toggle("on",open);
+  hamEl.setAttribute("aria-expanded",open?"true":"false");
+  document.body.style.overflow=open?"hidden":"";
+}
+hamEl.addEventListener("click",()=>railSet(!railEl.classList.contains("open")));
+$("#railX").addEventListener("click",()=>railSet(false));
+railBg.addEventListener("click",()=>railSet(false));
+document.addEventListener("keydown",e=>{if(e.key==="Escape")railSet(false);});
+links.forEach(aEl=>aEl.addEventListener("click",()=>railSet(false)));
+
+/* generic chip-group helper */
+function chipGroup(host,items,render,initial){
+  const el=$(host); el.innerHTML="";
+  items.forEach((it,i)=>{
+    const b=document.createElement("button");
+    b.className="chip"; b.textContent=it.label; b.dataset.i=i;
+    b.addEventListener("click",()=>{
+      $$("button",el).forEach(x=>x.classList.remove("on")); b.classList.add("on"); render(it,i);
+    });
+    el.appendChild(b);
+  });
+  const b=$$("button",el)[initial||0]; b.classList.add("on"); render(items[initial||0],initial||0);
+}
+
+/* ---------- WP01 band explorer ---------- */
+const bands=[
+ {label:"Blue",x:20,w:60,h:"<h4>Blue · ≈450–495 nm</h4><p class='spec'>PASSIVE · REFLECTED</p><p>Penetrates clear water (bathymetry), but scatters most in the atmosphere — the haze channel. Used in true-colour composites and water studies.</p>"},
+ {label:"Green",x:80,w:60,h:"<h4>Green · ≈495–570 nm</h4><p class='spec'>PASSIVE · REFLECTED</p><p>Peak reflectance of healthy leaves in the visible range — why vegetation looks green. Useful for vigour and algae mapping.</p>"},
+ {label:"Red",x:140,w:60,h:"<h4>Red · ≈620–700 nm</h4><p class='spec'>PASSIVE · REFLECTED</p><p>Strongly <b>absorbed</b> by chlorophyll. Healthy crops go dark in red — one half of the NDVI contrast.</p>"},
+ {label:"Red edge",x:200,w:50,h:"<h4>Red edge · ≈705–740 nm</h4><p class='spec'>PASSIVE · MULTISPECTRAL</p><p>The steep ramp between red absorption and NIR reflection. Its position shifts with plant stress <i>before</i> the eye sees anything — early-warning band for agriculture (NDRE).</p>"},
+ {label:"NIR",x:250,w:120,h:"<h4>Near-infrared · ≈750–1100 nm</h4><p class='spec'>PASSIVE · MULTISPECTRAL</p><p>Healthy leaf cell structure reflects NIR strongly; stressed or sparse canopy doesn't. The other half of NDVI. Invisible to RGB cameras.</p>"},
+ {label:"SWIR",x:370,w:170,h:"<h4>Shortwave IR · ≈1.1–3 µm</h4><p class='spec'>PASSIVE · SPECIALISED</p><p>Sensitive to water content in leaf and soil — moisture stress, burn scars, some mineral signatures. Rare and expensive on UAVs.</p>"},
+ {label:"Thermal",x:540,w:330,h:"<h4>Thermal IR · ≈8–14 µm</h4><p class='spec'>PASSIVE · EMITTED — WORKS AT NIGHT</p><p>Measures the target's own emitted heat, not reflected sunlight. Irrigation faults, defective solar cells, animals and people in search &amp; rescue.</p>"}
+];
+chipGroup("#bandCtl",bands,(b)=>{
+  const r=$("#bandHL"); r.setAttribute("x",b.x); r.setAttribute("width",b.w);
+  $("#bandDet").innerHTML=b.h;
+},4);
+
+/* NDVI */
+function ndvi(){
+  const n=+$("#ndNIR").value/100, r=+$("#ndRED").value/100;
+  $("#ndNIRo").textContent=fmt(n,2); $("#ndREDo").textContent=fmt(r,2);
+  const v=(n+r)===0?0:(n-r)/(n+r);
+  $("#ndVal").textContent=fmt(v,2);
+  let t="Bare soil / built";
+  if(v<0)t="Water / cloud / snow"; else if(v<0.2)t="Bare soil / built"; else if(v<0.5)t="Sparse / stressed vegetation"; else t="Dense healthy vegetation";
+  $("#ndTxt").textContent=t;
+}
+["ndNIR","ndRED"].forEach(id=>$("#"+id).addEventListener("input",ndvi)); ndvi();
+
+/* ---------- WP02 point density ---------- */
+function pd(){
+  const prr=+$("#pdPRR").value, v=+$("#pdV").value, h=+$("#pdH").value, fov=+$("#pdFOV").value;
+  $("#pdPRRo").textContent=prr+" kHz"; $("#pdVo").textContent=v+" m/s"; $("#pdHo").textContent=h+" m"; $("#pdFOVo").textContent=fov+"°";
+  const sw=2*h*Math.tan(fov*Math.PI/360);
+  const den=prr*1000/(v*sw);
+  const sp=Math.sqrt(1/den)*100;
+  const area=v*sw*60/10000;
+  $("#pdSw").innerHTML=fmt(sw,0)+" <s>m</s>"; $("#pdD").innerHTML=fmt(den,0)+" <s>pts/m²</s>";
+  $("#pdS").innerHTML=fmt(sp,1)+" <s>cm</s>"; $("#pdA").innerHTML=fmt(area,1)+" <s>ha/min</s>";
+}
+["pdPRR","pdV","pdH","pdFOV"].forEach(id=>$("#"+id).addEventListener("input",pd)); pd();
+
+/* ---------- WP03 SfM stepper ---------- */
+(function(){
+  const svg=$("#sfmSvg");
+  const rnd=(function(a){return function(){a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296;};})(7);
+  const terr=x=>178-26*Math.sin(x/70)-14*Math.sin(x/29+1.4)-(x>250&&x<320?24:0);
+  let s='<line x1="10" y1="216" x2="430" y2="216" stroke="#151B13" stroke-width="1.5"/>';
+  const cams=[60,140,220,300,380];
+  s+='<g id="sfG1">'; cams.forEach(cx=>{ for(let k=0;k<3;k++){const tx=cx-60+rnd()*120,ty=terr(tx); s+='<line x1="'+cx+'" y1="34" x2="'+fmt(tx,0)+'" y2="'+fmt(ty,0)+'" stroke="#B3157E" stroke-width=".7" opacity=".55"/>';} }); s+='</g>';
+  s+='<g id="sfG2" fill="#151B13">'; for(let i=0;i<64;i++){const tx=16+rnd()*400,ty=terr(tx)+(rnd()-0.5)*8; s+='<circle cx="'+fmt(tx,0)+'" cy="'+fmt(ty,0)+'" r="1.6"/>';} s+='</g>';
+  s+='<g id="sfG3">'; [70,220,372].forEach(gx=>{const gy=terr(gx); s+='<path d="M'+(gx-7)+' '+fmt(gy+4,0)+' L'+(gx+7)+' '+fmt(gy+4,0)+' L'+gx+' '+fmt(gy-8,0)+' Z" fill="#D98200"/><text x="'+gx+'" y="'+fmt(gy+18,0)+'" text-anchor="middle" font-family="IBM Plex Mono,monospace" font-size="8" fill="#D98200">GCP</text>';}); s+='</g>';
+  s+='<g id="sfG4" fill="#4C5548">'; for(let i=0;i<620;i++){const tx=12+rnd()*408,ty=terr(tx)+(rnd()-0.5)*5; s+='<circle cx="'+fmt(tx,1)+'" cy="'+fmt(ty,1)+'" r=".8"/>';} s+='</g>';
+  let mp='M12 '+fmt(terr(12),0); for(let x=24;x<=428;x+=16){mp+=' L'+x+' '+fmt(terr(x),0);} 
+  s+='<g id="sfG5"><path d="'+mp+' L428 216 L12 216 Z" fill="rgba(30,95,140,.16)" stroke="#1E5F8C" stroke-width="1.4"/></g>';
+  s+='<g id="sfG6"><rect x="12" y="196" width="416" height="20" fill="#8aa05a"/><rect x="150" y="196" width="90" height="20" fill="#b7b2a4"/>';
+  for(let x=12;x<=428;x+=32){s+='<line x1="'+x+'" y1="196" x2="'+x+'" y2="216" stroke="#F6F7F0" stroke-width=".6" opacity=".7"/>';}
+  s+='<text x="220" y="190" text-anchor="middle" font-family="IBM Plex Mono,monospace" font-size="8.5" fill="#1E5F8C">ORTHOMOSAIC · TRUE SCALE, NO PERSPECTIVE</text></g>';
+  s+='<g id="sfCams">'; cams.forEach((cx,i)=>{ s+='<path d="M'+(cx-8)+' 26 L'+(cx+8)+' 26 L'+cx+' 40 Z" fill="#151B13"/><text x="'+cx+'" y="20" text-anchor="middle" font-family="IBM Plex Mono,monospace" font-size="8" fill="#4C5548">IMG '+(i+1)+'</text>'; }); s+='</g>';
+  svg.innerHTML=s;
+  const G=id=>$("#"+id,svg);
+  const stages=[
+   {label:"1 · Features",show:["sfG1"],cap:"Keypoints detected in every image and matched across overlaps → tie points.",
+    d:"<h4>Feature detection &amp; matching</h4><p class='spec'>INPUT: OVERLAPPING PHOTOS (70–80% FRONT, 60–70% SIDE)</p><p>Distinctive corners/blobs (SIFT-like keypoints) are found in each image and matched between images. Each matched ray-pair is a <b>tie point</b> — the raw material of reconstruction. This is why texture and overlap are non-negotiable.</p>"},
+   {label:"2 · Bundle adj.",show:["sfG2"],cap:"Bundle adjustment solves all camera poses and a sparse cloud at once.",
+    d:"<h4>Structure from Motion — bundle adjustment</h4><p class='spec'>OUTPUT: CAMERA POSES + SPARSE CLOUD</p><p>A giant least-squares problem: adjust every camera position/orientation and every tie-point's 3D location until reprojection errors are minimal. Camera self-calibration (focal length, distortion) is refined here too.</p>"},
+   {label:"3 · Georeference",show:["sfG2","sfG3"],cap:"GCPs (or RTK/PPK camera positions) pin the model to real coordinates.",
+    d:"<h4>Georeferencing enters the pipeline</h4><p class='spec'>GCP MARKS OR RTK/PPK EXIF POSITIONS</p><p>The free-floating model is scaled, rotated and translated onto the chosen CRS — either by marking surveyed GCPs in the images (indirect) or by trusting corrected camera coordinates (direct). Checkpoints report the honest RMSE.</p>"},
+   {label:"4 · Dense MVS",show:["sfG4"],cap:"Multi-view stereo densifies to millions of points.",
+    d:"<h4>Dense matching (MVS)</h4><p class='spec'>THE GPU-HUNGRY STEP</p><p>With poses known, per-pixel depth is estimated between neighbouring views and fused into a dense cloud — hundreds of points per m². This stage dominates processing time and is what cloud GPUs are rented for.</p>"},
+   {label:"5 · Mesh / DSM",show:["sfG5"],cap:"Points → continuous surface: textured mesh and rasterised DSM.",
+    d:"<h4>Surface: mesh &amp; DSM</h4><p class='spec'>POINTS → CONTINUOUS MODEL</p><p>The cloud is triangulated into a mesh and/or gridded into a DSM raster. Ground filtering of the cloud yields a DTM where the ground is actually visible between objects.</p>"},
+   {label:"6 · Orthomosaic",show:["sfG6"],cap:"Images are projected onto the surface and blended into a measurable map.",
+    d:"<h4>Orthorectification &amp; mosaic</h4><p class='spec'>THE DELIVERABLE MOST CLIENTS WANT</p><p>Each photo is projected onto the DSM/DTM, removing perspective and relief distortion, then blended into one seamless, uniformly scaled image — you can measure distances and areas on it like a map.</p>"}
+  ];
+  const all=["sfG1","sfG2","sfG3","sfG4","sfG5","sfG6"];
+  chipGroup("#sfmCtl",stages,(st)=>{
+    all.forEach(id=>G(id).style.display=st.show.includes(id)?"":"none");
+    $("#sfmDet").innerHTML=st.d; $("#sfmCap").textContent=st.cap;
+  },0);
+})();
+
+/* ---------- WP04 georeferencing ---------- */
+const geoM=[
+ {label:"Consumer GNSS only",acc:300,cls:"mag",d:"<h4>No corrections — navigation-grade tags</h4><p class='spec'>ABSOLUTE ACCURACY ≈ 2–5 m</p><p>The drone's standard GNSS writes metre-level positions into EXIF. The model is internally consistent (good <i>relative</i> measurements) but floats metres from truth. Acceptable only for visualisation or purely relative comparisons.</p>"},
+ {label:"GCP · indirect",acc:2.5,cls:"",d:"<h4>Ground control points</h4><p class='spec'>ABSOLUTE ACCURACY ≈ 1–3 cm (WITH GOOD DISTRIBUTION)</p><p>Surveyed targets marked in the images anchor the bundle adjustment. Field-heavy — every point must be placed and surveyed — but gold-standard, hardware-independent, and self-checking via held-back checkpoints.</p>"},
+ {label:"RTK · direct, live",acc:4,cls:"",d:"<h4>Real-Time Kinematic</h4><p class='spec'>CAMERA POSITIONS ≈ 2–5 cm, CORRECTED IN FLIGHT</p><p>A base station or NTRIP network streams corrections to the drone during flight. Minimal fieldwork; but a dropped correction link degrades fixes mid-mission, so keep 1–3 checkpoints to verify.</p>"},
+ {label:"PPK · direct, post",acc:3,cls:"",d:"<h4>Post-Processed Kinematic</h4><p class='spec'>SAME ACCURACY, CORRECTED AFTER LANDING</p><p>Raw GNSS observables logged on drone and base are combined afterwards — no live link to lose, corrections can be re-run, generally the most robust survey workflow. Requires precise exposure timestamps and the antenna–camera lever arm.</p>"}
+];
+chipGroup("#geoCtl",geoM,(m)=>{ $("#geoDet").innerHTML=m.d;
+  $("#geoBars").innerHTML=geoM.map(g=>{
+    const w=Math.max(6,(Math.log10(g.acc)+0.1)/2.7*100);
+    const on=g===m;
+    return '<div class="bar-row"><span'+(on?' style="color:var(--magenta);font-weight:600"':'')+'>'+g.label.split(" ·")[0]+'</span><div class="tr"><div class="fl'+(g.acc>50?" mag":on?"":"")+'" style="width:'+fmt(w,0)+'%;'+(on&&g.acc<=50?"background:var(--magenta)":"")+'"></div></div><b>'+(g.acc>=100?fmt(g.acc/100,0)+" m":"≈ "+fmt(g.acc,0)+" cm")+'</b></div>';
+  }).join("");
+},1);
+
+/* ---------- WP05 cloud ---------- */
+const cld=[
+ {label:"Onboard / edge",d:"<h4>Compute on the aircraft</h4><p class='spec'>COMPANION COMPUTER (JETSON-CLASS) · MILLISECOND LATENCY</p><p>Detection, tracking and obstacle logic must run where the camera is — no link survives a 50 ms control loop. Power and mass budgets keep models small (classical CV like Haar, or compact networks). Full photogrammetry is out of reach here.</p>"},
+ {label:"Ground workstation",d:"<h4>Local desktop / server</h4><p class='spec'>GPU RIG · FULL CONTROL · DATA STAYS ON SITE</p><p>The traditional approach: Metashape or Terra on a strong GPU machine. Maximum parameter control, no upload wait, one-time cost — but capacity is fixed, and big jobs queue for days.</p>"},
+ {label:"Cloud (SaaS)",d:"<h4>Data-centre processing</h4><p class='spec'>ELASTIC GPUS · WEB DELIVERABLES · SUBSCRIPTION</p><p>Upload images; the platform (DroneDeploy, Pix4D Cloud…) processes on rented compute and serves results in a browser. Scales past any desk, enables same-day sharing — costs bandwidth, subscription fees, and custody of the data.</p>"},
+ {label:"Hybrid",d:"<h4>Edge triage + cloud heavy lifting</h4><p class='spec'>THE EMERGING DEFAULT</p><p>The aircraft or field laptop does quick checks (coverage, blur, live detections); the full SfM/LiDAR crunch happens in the cloud overnight. Best of both, at the price of a more complex workflow.</p>"}
+];
+chipGroup("#cldCtl",cld,(m)=>{$("#cldDet").innerHTML=m.d;},2);
+
+/* ================= SCENE ENGINE (all live labs) ================= */
+const W=252,H=168;
+function mulberry(a){return function(){a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296;};}
+const base=(function(){
+  const c=document.createElement("canvas");c.width=W;c.height=H;const x=c.getContext("2d");
+  const rnd=mulberry(20260807);
+  x.fillStyle="#6f8f4a";x.fillRect(0,0,W,H);
+  x.strokeStyle="rgba(40,60,25,.5)";x.lineWidth=1;
+  for(let i=-40;i<W;i+=7){x.beginPath();x.moveTo(i,0);x.lineTo(i+28,H);x.stroke();}
+  x.fillStyle="#7d9450";x.fillRect(0,0,112,62);
+  x.strokeStyle="rgba(60,75,30,.45)";
+  for(let j=5;j<62;j+=6){x.beginPath();x.moveTo(0,j);x.lineTo(112,j);x.stroke();}
+  x.fillStyle="#3f6d8a";x.beginPath();x.ellipse(206,36,27,15,0.2,0,7);x.fill();
+  x.fillStyle="#527f9a";x.beginPath();x.ellipse(202,34,17,9,0.2,0,7);x.fill();
+  x.strokeStyle="#b7b2a4";x.lineWidth=15;x.beginPath();x.moveTo(-10,152);x.lineTo(262,62);x.stroke();
+  x.strokeStyle="#efe9d8";x.lineWidth=1.4;x.setLineDash([7,7]);x.beginPath();x.moveTo(-10,152);x.lineTo(262,62);x.stroke();x.setLineDash([]);
+  function bld(bx,by,bw,bh,col){x.fillStyle="rgba(25,32,20,.55)";x.fillRect(bx+3,by+3,bw,bh);x.fillStyle=col;x.fillRect(bx,by,bw,bh);}
+  bld(34,92,26,18,"#dcd6c6"); bld(66,108,18,13,"#ccc6b6"); bld(158,118,30,20,"#c4703f");
+  x.fillStyle="#f4f4f0";x.fillRect(118,104,9,5);
+  x.fillStyle="#26303c";x.fillRect(86,117,8,5);
+  function tree(tx,ty,r){x.fillStyle="rgba(20,40,15,.6)";x.beginPath();x.arc(tx+1.5,ty+1.5,r,0,7);x.fill();x.fillStyle="#2f4a26";x.beginPath();x.arc(tx,ty,r,0,7);x.fill();}
+  for(let i=0;i<13;i++)tree(8+rnd()*60,126+rnd()*36,2.5+rnd()*3.5);
+  for(let i=0;i<11;i++)tree(216+rnd()*30,86+rnd()*68,2.5+rnd()*3.5);
+  const im=x.getImageData(0,0,W,H),d=im.data;
+  for(let i=0;i<d.length;i+=4){const n=(rnd()-0.5)*16;d[i]+=n;d[i+1]+=n;d[i+2]+=n*0.8;}
+  return im;
+})();
+const _sc=document.createElement("canvas");_sc.width=W;_sc.height=H;const _sctx=_sc.getContext("2d");
+function mkImg(){return _sctx.createImageData(W,H);}
+function cloneImg(src){const im=mkImg();im.data.set(src.data);return im;}
+function put(id,img){const c=$("#"+id);c.getContext("2d").putImageData(img,0,0);}
+function grayOf(img){const g=new Uint8ClampedArray(W*H),d=img.data;
+  for(let i=0,p=0;i<g.length;i++,p+=4)g[i]=0.299*d[p]+0.587*d[p+1]+0.114*d[p+2]|0; return g;}
+function grayImg(g,scale){const im=mkImg(),d=im.data;
+  for(let i=0,p=0;i<g.length;i++,p+=4){const v=scale?Math.min(255,g[i]*scale):g[i];d[p]=d[p+1]=d[p+2]=v;d[p+3]=255;} return im;}
+function convC(img,k,kw){ // colour convolution, square kernel kw x kw
+  const out=mkImg(),s=img.data,o=out.data,r=(kw-1)/2;
+  for(let y=0;y<H;y++)for(let x=0;x<W;x++){
+    let a=0,b=0,c=0;
+    for(let j=-r;j<=r;j++)for(let i=-r;i<=r;i++){
+      const yy=Math.min(H-1,Math.max(0,y+j)),xx=Math.min(W-1,Math.max(0,x+i));
+      const p=(yy*W+xx)*4,kv=k[(j+r)*kw+(i+r)];
+      a+=s[p]*kv;b+=s[p+1]*kv;c+=s[p+2]*kv;
+    }
+    const q=(y*W+x)*4;o[q]=a;o[q+1]=b;o[q+2]=c;o[q+3]=255;
+  } return out;}
+function median3(img){
+  const out=mkImg(),s=img.data,o=out.data;
+  const buf=[[],[],[]];
+  for(let y=0;y<H;y++)for(let x=0;x<W;x++){
+    for(let ch=0;ch<3;ch++)buf[ch].length=0;
+    for(let j=-1;j<=1;j++)for(let i=-1;i<=1;i++){
+      const yy=Math.min(H-1,Math.max(0,y+j)),xx=Math.min(W-1,Math.max(0,x+i)),p=(yy*W+xx)*4;
+      buf[0].push(s[p]);buf[1].push(s[p+1]);buf[2].push(s[p+2]);
+    }
+    const q=(y*W+x)*4;
+    for(let ch=0;ch<3;ch++){buf[ch].sort((a,b)=>a-b);o[q+ch]=buf[ch][4];}
+    o[q+3]=255;
+  } return out;}
+function sobel(g){
+  const gx=new Float32Array(W*H),gy=new Float32Array(W*H),mg=new Float32Array(W*H);
+  for(let y=1;y<H-1;y++)for(let x=1;x<W-1;x++){
+    const i=y*W+x;
+    const a=g[i-W-1],b=g[i-W],c=g[i-W+1],d=g[i-1],f=g[i+1],h=g[i+W-1],e=g[i+W],j=g[i+W+1];
+    const sx=(c+2*f+j)-(a+2*d+h), sy=(h+2*e+j)-(a+2*b+c);
+    gx[i]=sx;gy[i]=sy;mg[i]=Math.hypot(sx,sy);
+  } return {gx,gy,mg};}
+function histOf(g){const h=new Uint32Array(256);for(let i=0;i<g.length;i++)h[g[i]]++;return h;}
+function otsu(g){
+  const h=histOf(g),N=g.length;let sum=0;for(let i=0;i<256;i++)sum+=i*h[i];
+  let sb=0,wb=0,mx=0,th=0;
+  for(let t=0;t<256;t++){wb+=h[t];if(!wb)continue;const wf=N-wb;if(!wf)break;
+    sb+=t*h[t];const mb=sb/wb,mf=(sum-sb)/wf,between=wb*wf*(mb-mf)*(mb-mf);
+    if(between>mx){mx=between;th=t;}}
+  return th;}
+function equalize(g){
+  const h=histOf(g),lut=new Uint8ClampedArray(256);let c=0;
+  for(let i=0;i<256;i++){c+=h[i];lut[i]=Math.round(c*255/g.length);}
+  const o=new Uint8ClampedArray(g.length);for(let i=0;i<g.length;i++)o[i]=lut[g[i]];return o;}
+function clahe(g,tiles,clip){
+  const tw=Math.ceil(W/tiles),th=Math.ceil(H/tiles);
+  const luts=[];
+  for(let ty=0;ty<tiles;ty++){luts[ty]=[];
+    for(let tx=0;tx<tiles;tx++){
+      const h=new Float32Array(256);let n=0;
+      for(let y=ty*th;y<Math.min(H,(ty+1)*th);y++)for(let x=tx*tw;x<Math.min(W,(tx+1)*tw);x++){h[g[y*W+x]]++;n++;}
+      const limit=clip*n/256;let excess=0;
+      for(let i=0;i<256;i++){if(h[i]>limit){excess+=h[i]-limit;h[i]=limit;}}
+      const add=excess/256;for(let i=0;i<256;i++)h[i]+=add;
+      const lut=new Uint8ClampedArray(256);let c=0;
+      for(let i=0;i<256;i++){c+=h[i];lut[i]=Math.round(c*255/n);}
+      luts[ty][tx]=lut;
+    }}
+  const o=new Uint8ClampedArray(g.length);
+  for(let y=0;y<H;y++)for(let x=0;x<W;x++){
+    const fy=(y+0.5)/th-0.5, fx=(x+0.5)/tw-0.5;
+    let y0=Math.floor(fy),x0=Math.floor(fx);
+    const dy=fy-y0,dx=fx-x0;
+    const y1=Math.min(tiles-1,Math.max(0,y0+1));const x1=Math.min(tiles-1,Math.max(0,x0+1));
+    y0=Math.min(tiles-1,Math.max(0,y0));x0=Math.min(tiles-1,Math.max(0,x0));
+    const v=g[y*W+x];
+    const val=(1-dy)*((1-dx)*luts[y0][x0][v]+dx*luts[y0][x1][v])+dy*((1-dx)*luts[y1][x0][v]+dx*luts[y1][x1][v]);
+    o[y*W+x]=val;
+  } return o;}
+
+/* ---------- WP08 bit depth ---------- */
+put("cvBitIn",base);
+function bitR(){
+  const b=+$("#bitS").value,lv=1<<b,step=255/(lv-1||1);
+  $("#bitO").textContent=b+" bit";
+  const im=cloneImg(base),d=im.data;
+  for(let i=0;i<d.length;i+=4){for(let c=0;c<3;c++)d[i+c]=Math.round(d[i+c]/step)*step;}
+  put("cvBitOut",im);
+  $("#bitLv").textContent=lv;
+  const tot=Math.pow(lv,3);
+  $("#bitCol").textContent=tot>=1e6?fmt(tot/1e6,1)+" M":tot>=1000?fmt(tot/1000,0)+" k":tot;
+  $("#bitCap").textContent="Quantised · "+b+"-bit ("+lv+" levels/channel)";
+}
+$("#bitS").addEventListener("input",bitR); bitR();
+
+/* ---------- WP10 channel viewer ---------- */
+put("cvChanIn",base);
+const gBase=grayOf(base);
+function hsvOf(){ // returns {h,s,v} arrays in OpenCV scale
+  const n=W*H,hA=new Uint8ClampedArray(n),sA=new Uint8ClampedArray(n),vA=new Uint8ClampedArray(n),d=base.data;
+  for(let i=0,p=0;i<n;i++,p+=4){
+    const r=d[p]/255,g=d[p+1]/255,b=d[p+2]/255;
+    const mx=Math.max(r,g,b),mn=Math.min(r,g,b),df=mx-mn;
+    let h=0;
+    if(df>0){ if(mx===r)h=60*(((g-b)/df)%6); else if(mx===g)h=60*((b-r)/df+2); else h=60*((r-g)/df+4); }
+    if(h<0)h+=360;
+    hA[i]=h/2; sA[i]=mx?df/mx*255:0; vA[i]=mx*255;
+  } return {hA,sA,vA};
+}
+const HSV=hsvOf();
+const chan=[
+ {label:"Colour",cap:"BGR composite",img:()=>base,d:"<h4>Full colour</h4><p class='spec'>3 CHANNELS · AS CAPTURED</p><p>What the sensor recorded. Every other view is a slice or a recombination of these numbers.</p>"},
+ {label:"Gray",cap:"Grayscale · weighted sum",img:()=>grayImg(gBase),d:"<h4>Grayscale</h4><p class='spec'>0.299 R + 0.587 G + 0.114 B</p><p>One channel is enough for edges, contours and Haar detection — a third of the data, most of the structure.</p>"},
+ {label:"R",cap:"Red channel as intensity",img:()=>{const n=W*H,g=new Uint8ClampedArray(n);for(let i=0;i<n;i++)g[i]=base.data[i*4];return grayImg(g);},d:"<h4>Red channel</h4><p class='spec'>BRIGHT = LOTS OF RED</p><p>The orange roof glows; vegetation is mid-dark (chlorophyll absorbs red — the NDVI idea in miniature).</p>"},
+ {label:"G",cap:"Green channel as intensity",img:()=>{const n=W*H,g=new Uint8ClampedArray(n);for(let i=0;i<n;i++)g[i]=base.data[i*4+1];return grayImg(g);},d:"<h4>Green channel</h4><p class='spec'>BRIGHT = LOTS OF GREEN</p><p>Fields and trees are bright, the pond dark. Note how similar R, G, B slices look overall — brightness dominates all three, which is RGB's weakness.</p>"},
+ {label:"B",cap:"Blue channel as intensity",img:()=>{const n=W*H,g=new Uint8ClampedArray(n);for(let i=0;i<n;i++)g[i]=base.data[i*4+2];return grayImg(g);},d:"<h4>Blue channel</h4><p class='spec'>BRIGHT = LOTS OF BLUE</p><p>The pond finally stands out bright; vegetation goes dark. Still entangled with overall brightness.</p>"},
+ {label:"H",cap:"Hue (0–179) shown as intensity",img:()=>grayImg(HSV.hA,255/179),d:"<h4>Hue</h4><p class='spec'>WHAT COLOUR, IGNORING BRIGHTNESS</p><p>Whole regions of similar colour become flat patches — the field is one value, the pond another, the roof another. This flatness is exactly what makes hue thresholds so powerful for segmentation.</p>"},
+ {label:"S",cap:"Saturation as intensity",img:()=>grayImg(HSV.sA),d:"<h4>Saturation</h4><p class='spec'>HOW PURE THE COLOUR IS</p><p>Grey road and white vehicle go dark (no colour); strong greens and the orange roof are bright.</p>"},
+ {label:"V",cap:"Value as intensity",img:()=>grayImg(HSV.vA),d:"<h4>Value</h4><p class='spec'>HOW BRIGHT, IGNORING COLOUR</p><p>Essentially the lighting of the scene. In HSV, shadows move V while barely touching H — the property colour trackers rely on.</p>"}
+];
+chipGroup("#chanCtl",chan,(c)=>{put("cvChanOut",c.img());$("#chanCap").textContent=c.cap;$("#chanDet").innerHTML=c.d;},0);
+
+/* HSV mixer */
+function hsv2rgb(h,s,v){ // h 0-179 opencv
+  h=h*2;s/=255;v/=255;
+  const c=v*s,x=c*(1-Math.abs((h/60)%2-1)),m=v-c;
+  let r=0,g=0,b=0;
+  if(h<60){r=c;g=x;}else if(h<120){r=x;g=c;}else if(h<180){g=c;b=x;}
+  else if(h<240){g=x;b=c;}else if(h<300){r=x;b=c;}else{r=c;b=x;}
+  return [Math.round((r+m)*255),Math.round((g+m)*255),Math.round((b+m)*255)];
+}
+function hsR(){
+  const h=+$("#hsH").value,s=+$("#hsS").value,v=+$("#hsV").value;
+  $("#hsHo").textContent=h;$("#hsSo").textContent=s;$("#hsVo").textContent=v;
+  const [r,g,b]=hsv2rgb(h,s,v);
+  $("#hsSw").style.background="rgb("+r+","+g+","+b+")";
+  $("#hsRGB").textContent="HSV("+h+", "+s+", "+v+")  →  RGB("+r+", "+g+", "+b+")";
+}
+["hsH","hsS","hsV"].forEach(id=>$("#"+id).addEventListener("input",hsR)); hsR();
+
+/* ---------- WP01 sensor view simulator ---------- */
+(function(){
+  const d=base.data;
+  function lerpHex(a,b,t){
+    const pa=[parseInt(a.slice(1,3),16),parseInt(a.slice(3,5),16),parseInt(a.slice(5,7),16)];
+    const pb=[parseInt(b.slice(1,3),16),parseInt(b.slice(3,5),16),parseInt(b.slice(5,7),16)];
+    return [pa[0]+(pb[0]-pa[0])*t,pa[1]+(pb[1]-pa[1])*t,pa[2]+(pb[2]-pa[2])*t];
+  }
+  function ramp(stops,t){
+    t=Math.min(1,Math.max(0,t));
+    for(let i=1;i<stops.length;i++){
+      if(t<=stops[i][0]){
+        const u=(t-stops[i-1][0])/(stops[i][0]-stops[i-1][0]);
+        return lerpHex(stops[i-1][1],stops[i][1],u);
+      }
+    }
+    return lerpHex(stops[stops.length-1][1],stops[stops.length-1][1],0);
+  }
+  function cls(i){
+    const p=i*4,r=d[p],g=d[p+1],b=d[p+2];
+    if(b>g+6&&b>r+15&&b>80)return 1;               // water
+    if(r>170&&g<140&&b<110)return 3;               // orange roof
+    if(r>150&&g>145&&b>135&&Math.abs(r-g)<28)return 2; // pavement / bright roofs / white car
+    if(r<80&&g<95)return 4;                        // trees / dark
+    return 0;                                      // vegetation
+  }
+  function ggOf(i){const p=i*4;return d[p+1]-(d[p]+d[p+2])/2;}
+
+  function rgbView(){return cloneImg(base);}
+
+  const ndviStops=[[0,"#7a4a2a"],[0.28,"#c49a5a"],[0.45,"#e8d95d"],[0.7,"#7fbf3f"],[1,"#1c6b2d"]];
+  function ndviView(){
+    const im=mkImg(),o=im.data;
+    for(let i=0,p=0;i<W*H;i++,p+=4){
+      const c=cls(i);let col;
+      if(c===1)col=[37,80,122];
+      else{
+        let v;
+        if(c===4)v=0.82;                              // tree crowns: dense healthy canopy
+        else v=Math.min(0.92,Math.max(-0.25,ggOf(i)/60));
+        col=ramp(ndviStops,(v+0.25)/1.17);
+      }
+      o[p]=col[0];o[p+1]=col[1];o[p+2]=col[2];o[p+3]=255;
+    }
+    return im;
+  }
+
+  function cirView(){
+    const im=mkImg(),o=im.data;
+    for(let i=0,p=0;i<W*H;i++,p+=4){
+      const c=cls(i),gg=ggOf(i);
+      let nir;
+      if(c===1)nir=8; else if(c===2)nir=118; else if(c===3)nir=132;
+      else if(c===4)nir=185; else nir=Math.min(255,95+gg*2.4);
+      o[p]=nir;o[p+1]=d[p];o[p+2]=d[p+1];o[p+3]=255;
+    }
+    return im;
+  }
+
+  const thStops=[[0,"#120a2e"],[0.3,"#5b1c68"],[0.55,"#b23a55"],[0.78,"#ef8f2c"],[1,"#f9e969"]];
+  function thermalView(){
+    const T=new Float32Array(W*H), rn=mulberry(432);
+    const base_t=[26,17,36,43,21]; // veg water pave oroof tree
+    for(let i=0;i<W*H;i++)T[i]=base_t[cls(i)]+(rn()-0.5)*1.4;
+    function hot(x0,y0,w0,h0,t){for(let y=y0;y<y0+h0;y++)for(let x=x0;x<x0+w0;x++)T[y*W+x]=t;}
+    hot(118,104,9,5,41); hot(86,117,8,5,39);
+    // pixelate to fake a low-res microbolometer
+    const B=3;
+    for(let by=0;by<H;by+=B)for(let bx=0;bx<W;bx+=B){
+      let s=0,n=0;
+      for(let y=by;y<Math.min(H,by+B);y++)for(let x=bx;x<Math.min(W,bx+B);x++){s+=T[y*W+x];n++;}
+      const m=s/n;
+      for(let y=by;y<Math.min(H,by+B);y++)for(let x=bx;x<Math.min(W,bx+B);x++)T[y*W+x]=m;
+    }
+    // one smoothing pass
+    const T2=new Float32Array(T);
+    for(let y=1;y<H-1;y++)for(let x=1;x<W-1;x++){
+      const i=y*W+x;
+      T2[i]=(T[i]*2+T[i-1]+T[i+1]+T[i-W]+T[i+W])/6;
+    }
+    const im=mkImg(),o=im.data;
+    for(let i=0,p=0;i<W*H;i++,p+=4){
+      const col=ramp(thStops,(T2[i]-15)/31);
+      o[p]=col[0];o[p+1]=col[1];o[p+2]=col[2];o[p+3]=255;
+    }
+    return im;
+  }
+
+  const liStops=[[0,"#2e6b8f"],[0.25,"#3f8f5a"],[0.5,"#b8bf3a"],[0.75,"#e08a20"],[1,"#c93a76"]];
+  function lidarView(){
+    // rebuild the height field with the SAME seeded tree positions as the scene
+    const hM=new Float32Array(W*H);
+    function box(x0,y0,w0,h0,ht){for(let y=y0;y<y0+h0;y++)for(let x=x0;x<x0+w0;x++)hM[y*W+x]=ht;}
+    for(let i=0;i<W*H;i++){
+      const x=i%W,y=(i-x)/W;
+      const ex=(x-206)/27,ey=(y-36)/15;
+      if(ex*ex+ey*ey<1)hM[i]=-0.6;
+    }
+    for(let i=0;i<W*H;i++){
+      const x=i%W,y=(i-x)/W;
+      if(hM[i]===0)hM[i]=0.35+0.3*Math.sin(x/34)+0.22*Math.sin(y/26+1.2);
+    }
+    box(34,92,26,18,2.8); box(66,108,18,13,2.3); box(158,118,30,20,3.6);
+    box(118,104,9,5,1.5); box(86,117,8,5,1.4);
+    const rT=mulberry(20260807);
+    function dome(tx,ty,r){
+      const hk=r*1.9,R=r*1.6;
+      for(let y=Math.max(0,ty-R|0);y<Math.min(H,ty+R);y++)
+        for(let x=Math.max(0,tx-R|0);x<Math.min(W,tx+R);x++){
+          const dx=x-tx,dy=y-ty,dd=Math.sqrt(dx*dx+dy*dy);
+          if(dd<R){const h=hk*(1-(dd/R)*(dd/R));if(h>hM[y*W+x])hM[y*W+x]=h;}
+        }
+    }
+    for(let i=0;i<13;i++)dome(8+rT()*60,126+rT()*36,2.5+rT()*3.5);
+    for(let i=0;i<11;i++)dome(216+rT()*30,86+rT()*68,2.5+rT()*3.5);
+    // render: dark background, seeded scatter of returns
+    const im=mkImg(),o=im.data;
+    for(let p=0;p<o.length;p+=4){o[p]=13;o[p+1]=16;o[p+2]=12;o[p+3]=255;}
+    const rP=mulberry(777);
+    for(let n=0;n<9200;n++){
+      const x=rP()*W|0,y=rP()*H|0,i=y*W+x;
+      let h=hM[i];
+      if(h>2&&rP()<0.32)h=0.35;       // canopy penetration: some pulses reach the ground
+      let col;
+      if(h<0)col=[26,60,92];
+      else col=ramp(liStops,h/6);
+      const p=i*4;o[p]=col[0];o[p+1]=col[1];o[p+2]=col[2];
+      if(h>3&&x<W-1){const q=p+4;o[q]=col[0];o[q+1]=col[1];o[q+2]=col[2];}
+    }
+    return im;
+  }
+
+  const sen=[
+   {label:"RGB camera",cap:"RGB orthophoto view · as the eye sees",img:rgbView,
+    d:"<h4>RGB — mapping &amp; inspection</h4><p class='spec'>USE CASE: CONSTRUCTION PROGRESS · ASSET INSPECTION</p><p>Weekly orthomosaics of a construction site measure earthworks and verify progress against plan; the same camera flies façade, roof and bridge inspections. Cheapest sensor, and the input to all the photogrammetry in WP 03.</p>"},
+   {label:"Multispectral → NDVI",cap:"NDVI map · red = stressed, green = thriving",img:ndviView,
+    d:"<h4>Multispectral — precision agriculture</h4><p class='spec'>USE CASE: CROP HEALTH · VARIABLE-RATE INPUTS</p><p>NDVI over cotton fields or the orange orchards around Nagpur: a failed drip line shows as a red/yellow lane <i>days</i> before wilting is visible to the eye. Note the pond and road drop out as non-vegetation — exactly what the index is built to do.</p>"},
+   {label:"Hyperspectral (CIR)",cap:"Colour-infrared composite · NIR shown as red",img:cirView,
+    d:"<h4>Hyperspectral — identification</h4><p class='spec'>USE CASE: SPECIES / DISEASE / MINERAL MAPPING</p><p>With 100+ narrow bands, every pixel carries a full spectral curve — enough to separate crop species, spot disease signatures, or map minerals and water quality. Shown here as the classic colour-infrared preview: healthy vegetation blazes red because NIR is displayed as red.</p>"},
+   {label:"Thermal",cap:"Thermal view · emitted heat, not reflected light",img:thermalView,
+    d:"<h4>Thermal — heat, day or night</h4><p class='spec'>USE CASE: SOLAR FARMS · LEAKS · SEARCH &amp; RESCUE</p><p>The metal roof and asphalt glow, vehicle engines are hot points, the pond is cold. Real jobs: failed hot cells on solar panels, wet leak plumes along irrigation canals, and a person's warmth in a night search. Notice the blocky softness — thermal sensors are low-resolution (typically 640 px wide).</p>"},
+   {label:"LiDAR",cap:"Point cloud · coloured by height",img:lidarView,
+    d:"<h4>LiDAR — structure, through gaps</h4><p class='spec'>USE CASE: TERRAIN UNDER CANOPY · 3D ASSETS</p><p>Every dot is one laser return, coloured by elevation: buildings step up in yellow-orange, tree crowns peak in magenta — and look <i>inside</i> the groves: blue-green ground points where pulses slipped through the leaves. Those last returns are why WP 02's DTM works. Full detail in the LiDAR leg below.</p>"}
+  ];
+  chipGroup("#senCtl",sen,(m)=>{put("cvSen",m.img());$("#senCap").textContent=m.cap;$("#senDet").innerHTML=m.d;},1);
+})();
+
+
+/* ---------- WP11 filter lab ---------- */
+let fltNoiseOn=false, fltMode=0;
+function noisy(src){
+  const im=cloneImg(src),d=im.data,rnd=mulberry(99);
+  for(let i=0;i<W*H;i++){const r=rnd();
+    if(r<0.02){const p=i*4;d[p]=d[p+1]=d[p+2]=255;}
+    else if(r<0.04){const p=i*4;d[p]=d[p+1]=d[p+2]=0;}
+  } return im;
+}
+const K={
+  mean:{k:new Array(9).fill(1/9),kw:3,disp:["1⁄9","1⁄9","1⁄9","1⁄9","1⁄9","1⁄9","1⁄9","1⁄9","1⁄9"]},
+  gauss:{k:(function(){const v=[1,4,6,4,1],o=[];for(let j=0;j<5;j++)for(let i=0;i<5;i++)o.push(v[j]*v[i]/256);return o;})(),kw:5,
+         disp:["1","4","6","4","1","4","16","24","16","4","6","24","36","24","6","4","16","24","16","4","1","4","6","4","1"]},
+  sharp:{k:[0,-1,0,-1,5,-1,0,-1,0],kw:3,disp:["0","−1","0","−1","5","−1","0","−1","0"]}
+};
+function kernHTML(o,note){
+  if(!o) return '<p style="font-size:13px;color:var(--ink2)">'+note+'</p>';
+  let s='<div class="kern" style="--kc:'+o.kw+'">';
+  o.disp.forEach(v=>{s+='<span class="'+(v.indexOf("−")===0?"neg":(+v>1||v==="5"?"pos":""))+'">'+v+'</span>';});
+  return s+'</div><p style="font-size:12px;color:var(--ink2)">'+note+'</p>';
+}
+const flt=[
+ {label:"Original",cap:"No filter",kern:()=>kernHTML(null,"Identity — output = input."),
+  fn:s=>cloneImg(s),d:"<h4>Original</h4><p class='spec'>BASELINE</p><p>Toggle the noise button, then judge each filter against this.</p>"},
+ {label:"Mean 3×3",cap:"cv2.blur — box filter",kern:()=>kernHTML(K.mean,"Every neighbour votes equally (÷9)."),
+  fn:s=>convC(s,K.mean.k,3),d:"<h4>Mean (box) blur</h4><p class='spec'>LINEAR · CHEAPEST</p><p>Simple average of the 3×3 neighbourhood. Smooths noise but blurs edges just as happily — the road edge softens visibly.</p>"},
+ {label:"Gaussian 5×5",cap:"cv2.GaussianBlur",kern:()=>kernHTML(K.gauss,"Centre-weighted (÷256) — the bell curve as a kernel."),
+  fn:s=>convC(s,K.gauss.k,5),d:"<h4>Gaussian blur</h4><p class='spec'>LINEAR · THE STANDARD PRE-SMOOTHER</p><p>Nearer pixels count more, so structure survives better than a box blur of equal strength. This is the smoothing inside Canny's first step.</p>"},
+ {label:"Median 3×3",cap:"cv2.medianBlur — nonlinear",kern:()=>kernHTML(null,"No kernel: sort the 9 neighbours, take the middle value. A rank filter, not a convolution."),
+  fn:s=>median3(s),d:"<h4>Median filter</h4><p class='spec'>NONLINEAR · IMPULSE-NOISE KILLER</p><p>An outlier speck can never be the median of its neighbourhood, so salt &amp; pepper vanishes while edges stay crisp. Turn the noise on and compare with Gaussian.</p>"},
+ {label:"Sharpen",cap:"cv2.filter2D with custom kernel",kern:()=>kernHTML(K.sharp,"Positive centre, negative ring: adds the difference from neighbours back in."),
+  fn:s=>convC(s,K.sharp.k,3),d:"<h4>Sharpening</h4><p class='spec'>LINEAR · EDGE ENHANCEMENT</p><p>Boosts local contrast — crop rows and roof edges pop. Beware: it amplifies noise equally well; sharpen <i>after</i> denoising, never before.</p>"}
+];
+function fltR(){
+  const src=fltNoiseOn?noisy(base):base;
+  put("cvFltIn",src);
+  $("#fltInCap").textContent=fltNoiseOn?"Input + 4% salt & pepper":"Input";
+  const m=flt[fltMode];
+  put("cvFltOut",m.fn(src));
+  $("#fltCap").textContent=m.cap; $("#fltDet").innerHTML=m.d; $("#fltKern").innerHTML=m.kern();
+}
+chipGroup("#fltCtl",flt,(m,i)=>{fltMode=i;fltR();},0);
+$("#fltNoise").addEventListener("click",e=>{fltNoiseOn=!fltNoiseOn;e.target.classList.toggle("on",fltNoiseOn);
+  e.target.textContent=fltNoiseOn?"Remove noise":"Add salt & pepper noise";fltR();});
+
+/* ---------- WP12 edge lab ---------- */
+const gSm=(function(){ // lightly smoothed gray for edges
+  const sm=convC(base,K.gauss.k,5); return grayOf(sm);
+})();
+put("cvEdgIn",grayImg(grayOf(base)));
+const S=sobel(gSm);
+function nms(mg,gx,gy){
+  const o=new Float32Array(W*H);
+  for(let y=1;y<H-1;y++)for(let x=1;x<W-1;x++){
+    const i=y*W+x,m=mg[i]; if(!m)continue;
+    const ang=Math.atan2(gy[i],gx[i]);
+    let d=Math.round(ang/(Math.PI/4))&3; // 0 h,1 diag,2 v,3 anti-diag
+    let a,b;
+    if(d===0){a=mg[i-1];b=mg[i+1];}
+    else if(d===2){a=mg[i-W];b=mg[i+W];}
+    else if(d===1){a=mg[i-W+1];b=mg[i+W-1];}
+    else{a=mg[i-W-1];b=mg[i+W+1];}
+    if(m>=a&&m>=b)o[i]=m;
+  } return o;
+}
+const NMS=nms(S.mg,S.gx,S.gy);
+function cannyMap(lo,hi){
+  const st=new Uint8Array(W*H); // 0 none 1 weak 2 strong
+  const stack=[];
+  for(let i=0;i<W*H;i++){const m=NMS[i];
+    if(m>=hi){st[i]=2;stack.push(i);} else if(m>=lo)st[i]=1;}
+  const out=new Uint8Array(W*H);
+  while(stack.length){
+    const i=stack.pop(); if(out[i])continue; out[i]=1;
+    const x=i%W,y=(i-x)/W;
+    for(let j=-1;j<=1;j++)for(let k=-1;k<=1;k++){
+      const yy=y+j,xx=x+k;
+      if(yy<0||yy>=H||xx<0||xx>=W)continue;
+      const n=yy*W+xx;
+      if(!out[n]&&st[n])stack.push(n);
+    }
+  } return out;
+}
+const edg=[
+ {label:"Sobel |G|",d:"<h4>Gradient magnitude</h4><p class='spec'>√(Gx² + Gy²)</p><p>Bright wherever intensity changes fast, in any direction. Thick, fuzzy edges — this is Canny's raw material before thinning.</p>",cap:"Sobel magnitude"},
+ {label:"Gx",d:"<h4>Horizontal derivative</h4><p class='spec'>RESPONDS TO VERTICAL EDGES</p><p>Kernel [−1 0 1; −2 0 2; −1 0 1]. Vertical building walls and the crop-row direction crossing left–right fire strongest.</p>",cap:"Sobel Gx (|value|)"},
+ {label:"Gy",d:"<h4>Vertical derivative</h4><p class='spec'>RESPONDS TO HORIZONTAL EDGES</p><p>The transpose kernel. Compare with Gx — same scene, different edges selected. Direction = atan2(Gy, Gx).</p>",cap:"Sobel Gy (|value|)"},
+ {label:"Laplacian",d:"<h4>Second derivative</h4><p class='spec'>∇² — ONE KERNEL, ALL ORIENTATIONS</p><p>Kernel [0 1 0; 1 −4 1; 0 1 0]. Zero-crossings mark edges. Very noise-sensitive — always pair with Gaussian smoothing (LoG).</p>",cap:"|Laplacian|"},
+ {label:"Canny",d:"<h4>Canny detector</h4><p class='spec'>SMOOTH → GRADIENT → NMS → DOUBLE THRESHOLD → HYSTERESIS</p><p>Drag the thresholds. Low too low → speckle survives via weak edges; high too high → road outline fragments. Aim for high ≈ 2–3 × low.</p>",cap:"Canny edges"}
+];
+let edgMode=4;
+function edgR(){
+  const lo=+$("#edgLo").value,hi=Math.max(+$("#edgHi").value,lo+5);
+  $("#edgLoo").textContent=lo;$("#edgHio").textContent=hi;$("#edgRat").textContent=fmt(hi/lo,1)+" : 1";
+  const m=edg[edgMode]; $("#edgDet").innerHTML=m.d; $("#edgCap").textContent=m.cap;
+  $("#edgSlWrap").style.opacity=edgMode===4?"1":".35";
+  $("#edgSlWrap").style.pointerEvents=edgMode===4?"":"none";
+  let g;
+  if(edgMode===0){g=new Uint8ClampedArray(W*H);for(let i=0;i<g.length;i++)g[i]=Math.min(255,S.mg[i]*0.7);}
+  else if(edgMode===1){g=new Uint8ClampedArray(W*H);for(let i=0;i<g.length;i++)g[i]=Math.min(255,Math.abs(S.gx[i]));}
+  else if(edgMode===2){g=new Uint8ClampedArray(W*H);for(let i=0;i<g.length;i++)g[i]=Math.min(255,Math.abs(S.gy[i]));}
+  else if(edgMode===3){
+    g=new Uint8ClampedArray(W*H);
+    for(let y=1;y<H-1;y++)for(let x=1;x<W-1;x++){const i=y*W+x;
+      g[i]=Math.min(255,Math.abs(gSm[i-1]+gSm[i+1]+gSm[i-W]+gSm[i+W]-4*gSm[i])*2);}
+  } else {
+    const e=cannyMap(lo,hi);g=new Uint8ClampedArray(W*H);let n=0;
+    for(let i=0;i<g.length;i++){g[i]=e[i]?255:0;n+=e[i];}
+    $("#edgPct").innerHTML=fmt(n/(W*H)*100,1)+" <s>%</s>";
+  }
+  if(edgMode!==4){let n=0;for(let i=0;i<g.length;i++)if(g[i]>60)n++;
+    $("#edgPct").innerHTML=fmt(n/(W*H)*100,1)+" <s>%</s>";}
+  put("cvEdgOut",grayImg(g));
+}
+chipGroup("#edgCtl",edg,(m,i)=>{edgMode=i;edgR();},4);
+["edgLo","edgHi"].forEach(id=>$("#"+id).addEventListener("input",edgR));
+
+/* ---------- WP13 histogram lab ---------- */
+const gHaze=(function(){const o=new Uint8ClampedArray(W*H);
+  for(let i=0;i<o.length;i++)o[i]=gBase[i]*0.42+96; return o;})();
+put("cvHstIn",grayImg(gHaze));
+const hst=[
+ {label:"Original (hazy)",d:"<h4>Low-contrast input</h4><p class='spec'>SIMULATED HAZE: v' = 0.42·v + 96</p><p>All pixels crowd the middle of the histogram — the CDF is a steep staircase over a narrow range. Detail exists, but no display can show it.</p>",cap:"Output = input"},
+ {label:"Global equalisation",d:"<h4>equalizeHist</h4><p class='spec'>ONE LUT FROM THE GLOBAL CDF</p><p>The mapping stretches the crowded range across 0–255 — the histogram spreads, the CDF straightens toward a diagonal. Notice noise in flat field areas gets amplified too.</p>",cap:"Global histogram equalisation"},
+ {label:"CLAHE",d:"<h4>CLAHE</h4><p class='spec'>TILED + CLIP-LIMITED + BILINEARLY BLENDED</p><p>Each tile equalises itself, but no bin may exceed the clip limit, so flat regions can't explode into noise. Raise the clip and watch texture (and grain) grow; raise tiles and watch enhancement localise.</p>",cap:"CLAHE"}
+];
+let hstMode=2;
+function drawHist(g){
+  const c=$("#cvHstPlot"),x=c.getContext("2d");
+  x.fillStyle="#F6F7F0";x.fillRect(0,0,504,110);
+  const h=histOf(g);let mx=0;for(let i=0;i<256;i++)mx=Math.max(mx,h[i]);
+  x.fillStyle="#B3157E";
+  for(let i=0;i<256;i++){const bh=h[i]/mx*92;x.fillRect(4+i*1.94,104-bh,1.7,bh);}
+  x.strokeStyle="#1E5F8C";x.lineWidth=1.6;x.beginPath();let c0=0;
+  for(let i=0;i<256;i++){c0+=h[i];const yv=104-(c0/g.length)*92;
+    if(i===0)x.moveTo(4,yv);else x.lineTo(4+i*1.94,yv);}
+  x.stroke();
+}
+function hstR(){
+  const clip=+$("#hstClip").value/10,tiles=+$("#hstTile").value;
+  $("#hstClipo").textContent=fmt(clip,1);$("#hstTileo").textContent=tiles+" × "+tiles;
+  const dim=hstMode!==2;
+  $("#hstSlWrap").style.opacity=dim?".35":"1";$("#hstSlWrap").style.pointerEvents=dim?"none":"";
+  let g;
+  if(hstMode===0)g=gHaze; else if(hstMode===1)g=equalize(gHaze); else g=clahe(gHaze,tiles,clip);
+  put("cvHstOut",grayImg(g)); drawHist(g);
+  const m=hst[hstMode];$("#hstDet").innerHTML=m.d;$("#hstCap").textContent=m.cap;
+}
+chipGroup("#hstCtl",hst,(m,i)=>{hstMode=i;hstR();},2);
+["hstClip","hstTile"].forEach(id=>$("#"+id).addEventListener("input",hstR));
+
+/* ---------- WP14 contour lab ---------- */
+put("cvSegIn",grayImg(gBase));
+let segInv=false;
+$("#segOt").textContent="T = "+otsu(gBase);
+function segR(){
+  const T=+$("#segT").value;$("#segTo").textContent=T;
+  const bin=new Uint8Array(W*H);let fg=0;
+  for(let i=0;i<W*H;i++){const v=segInv?(gBase[i]<=T):(gBase[i]>T);bin[i]=v?1:0;fg+=bin[i];}
+  // connected components
+  const lab=new Int32Array(W*H);let nl=0;const comps=[];
+  for(let i=0;i<W*H;i++){
+    if(bin[i]&&!lab[i]){
+      nl++;const stack=[i];lab[i]=nl;let area=0,minx=W,miny=H,mxx=0,mxy=0;
+      while(stack.length){
+        const p=stack.pop();area++;
+        const px=p%W,py=(p-px)/W;
+        if(px<minx)minx=px;if(px>mxx)mxx=px;if(py<miny)miny=py;if(py>mxy)mxy=py;
+        const nb=[p-1,p+1,p-W,p+W];
+        for(const q of nb){
+          if(q<0||q>=W*H)continue;
+          if(Math.abs((q%W)-px)>1)continue;
+          if(bin[q]&&!lab[q]){lab[q]=nl;stack.push(q);}
+        }
+      }
+      if(area>=18)comps.push({area,minx,miny,mxx,mxy,id:nl});
+    }
+  }
+  // render
+  const im=mkImg(),d=im.data;
+  for(let i=0,p=0;i<W*H;i++,p+=4){
+    const v=bin[i]?235:24;d[p]=d[p+1]=d[p+2]=v;d[p+3]=255;
+  }
+  // contour pixels (fg with a 4-neighbour bg) for kept comps
+  const keep=new Set(comps.map(c=>c.id));
+  for(let y=0;y<H;y++)for(let x=0;x<W;x++){
+    const i=y*W+x;
+    if(!bin[i]||!keep.has(lab[i]))continue;
+    const edge=(x===0||y===0||x===W-1||y===H-1)||!bin[i-1]||!bin[i+1]||!bin[i-W]||!bin[i+W];
+    if(edge){const p=i*4;d[p]=179;d[p+1]=21;d[p+2]=126;}
+  }
+  // bounding boxes
+  function px(xx,yy){if(xx<0||yy<0||xx>=W||yy>=H)return;const p=(yy*W+xx)*4;d[p]=30;d[p+1]=95;d[p+2]=140;}
+  comps.forEach(c=>{
+    for(let x=c.minx;x<=c.mxx;x++){px(x,c.miny);px(x,c.mxy);}
+    for(let y=c.miny;y<=c.mxy;y++){px(c.minx,y);px(c.mxx,y);}
+  });
+  put("cvSegOut",im);
+  comps.sort((a,b)=>b.area-a.area);
+  $("#segN").textContent=comps.length;
+  $("#segA").innerHTML=(comps.length?comps[0].area:0)+" <s>px</s>";
+  $("#segF").innerHTML=fmt(fg/(W*H)*100,1)+" <s>%</s>";
+}
+(function(){
+  const el=$("#segCtl");
+  const mk=(txt,fn,on)=>{const b=document.createElement("button");b.className="chip"+(on?" on":"");b.textContent=txt;b.addEventListener("click",fn);el.appendChild(b);return b;};
+  const bN=mk("Binary (bright objects)",()=>{segInv=false;bN.classList.add("on");bI.classList.remove("on");segR();},true);
+  const bI=mk("Inverted (dark objects)",()=>{segInv=true;bI.classList.add("on");bN.classList.remove("on");segR();});
+  const bO=document.createElement("button");bO.className="chip mag";bO.textContent="Use Otsu";
+  bO.addEventListener("click",()=>{$("#segT").value=otsu(gBase);segR();});
+  el.appendChild(bO);
+})();
+$("#segT").addEventListener("input",segR); segR();
+
+/* ---------- WP15 haar funnel ---------- */
+function haarR(){
+  const wv=Math.pow(10,+$("#haarW").value), rj=+$("#haarR").value/100;
+  $("#haarWo").textContent=wv>=1e6?fmt(wv/1e6,1)+" M":fmt(wv/1000,0)+" k";
+  $("#haarRo").textContent=Math.round(rj*100)+"%";
+  const stages=6;let cur=wv,work=0,rows="";
+  for(let i=0;i<stages;i++){
+    work+=cur;
+    const wpc=Math.max(0.5,cur/wv*100);
+    rows+='<div class="stagebar'+(i===stages-1?" last":"")+'"><span>Stage '+(i+1)+(i===0?" · cheap":i===stages-1?" · costly":"")+'</span><div class="tr"><div class="fl" style="width:'+fmt(wpc,1)+'%"></div></div><span>'+(cur>=1e6?fmt(cur/1e6,2)+" M":cur>=1000?fmt(cur/1000,1)+" k":Math.round(cur))+' windows</span></div>';
+    cur=cur*(1-rj);
+  }
+  $("#haarFun").innerHTML=rows;
+  $("#haarSurv").textContent=cur>=1000?fmt(cur/1000,1)+" k":Math.round(cur);
+  $("#haarSave").innerHTML=fmt((1-work/(wv*stages))*100,0)+" <s>%</s>";
+}
+["haarW","haarR"].forEach(id=>$("#"+id).addEventListener("input",haarR)); haarR();
+
+/* ---------- WP16 quiz ---------- */
+const qs=[
+ {q:"Which of these is an ACTIVE remote-sensing payload?",o:["RGB camera","Multispectral camera","LiDAR scanner","Thermal camera"],a:2,e:"LiDAR emits its own laser pulses and times the echoes. RGB, multispectral and thermal only receive energy (thermal receives emitted heat, but still emits nothing itself)."},
+ {q:"NDVI is computed as…",o:["(Red − NIR)/(Red + NIR)","(NIR − Red)/(NIR + Red)","NIR/Red","(Green − Red)/(Green + Red)"],a:1,e:"Healthy vegetation reflects NIR strongly and absorbs Red, so (NIR − Red)/(NIR + Red) approaches +1 for dense healthy canopy."},
+ {q:"In a forest, the LAST LiDAR return of a pulse most likely represents…",o:["The canopy top","A bird","The ground","Sensor noise"],a:2,e:"The final echo is the deepest surface the pulse reached — usually the ground. That is why LiDAR can build a DTM under vegetation."},
+ {q:"CHM (canopy height model) equals…",o:["DTM − DSM","DSM − DTM","DSM + DTM","Orthomosaic − DEM"],a:1,e:"Surface (tops of everything) minus terrain (bare earth) = height of what stands on the terrain."},
+ {q:"The key difference of PPK versus RTK is that PPK…",o:["Needs no base station data","Applies corrections after the flight","Is less accurate","Works without GNSS"],a:1,e:"PPK logs raw observables and post-processes them, so it doesn't depend on a live correction link — the more robust survey workflow."},
+ {q:"Best practice for GCP placement is…",o:["All clustered at the take-off point","Only along one edge","Spread across edges and centre at varied elevations","GCPs are unnecessary with any GNSS"],a:2,e:"Control must bracket the whole model in X, Y and Z; clustering lets the block tilt or bow away from truth elsewhere."},
+ {q:"cv2.imread() returns colour channels in the order…",o:["RGB","BGR","HSV","GRB"],a:1,e:"OpenCV's historic convention is Blue-Green-Red. Convert with cv2.cvtColor(img, cv2.COLOR_BGR2RGB) before Matplotlib."},
+ {q:"The best filter for salt & pepper (impulse) noise is…",o:["Gaussian blur","Mean blur","Median filter","Sharpen"],a:2,e:"A lone outlier can never be the median of its neighbourhood, so it's removed exactly; linear filters just smear it around."},
+ {q:"Canny keeps a weak-threshold edge pixel only if it…",o:["Is brighter than 128","Connects to a strong edge (hysteresis)","Lies on the image border","Has zero gradient"],a:1,e:"That's hysteresis: weak candidates survive only when linked to strong edges — healing gaps while discarding isolated noise."},
+ {q:"CLAHE differs from global equalisation because it…",o:["Works only on colour images","Uses tiles plus a clip limit","Ignores the histogram entirely","Only darkens images"],a:1,e:"Per-tile equalisation adapts to local content, and clipping each histogram bin limits noise amplification; tile mappings are blended by bilinear interpolation."},
+ {q:"cv2.findContours expects as input…",o:["A colour BGR image","A binary image","A histogram","A float64 gradient"],a:1,e:"Contours are boundaries of white regions in a binary image — threshold (or Canny) first, then find contours."},
+ {q:"The Haar cascade is fast mainly because…",o:["It uses a GPU","Early cheap stages reject most windows","It scans only the image centre","It uses colour information"],a:1,e:"Plus the integral image making each rectangle feature a 4-lookup operation. Most windows contain nothing and die in the first stages."}
+];
+let score=0,answered=new Set();
+function quizRender(){
+  $("#quiz").innerHTML=qs.map((q,i)=>
+    '<div class="q" data-i="'+i+'"><p class="stem">'+(i+1)+'. '+q.q+'</p>'+
+    q.o.map((o,j)=>'<button class="opt" data-j="'+j+'">'+o+'</button>').join("")+
+    '<div class="exp">'+q.e+'</div></div>').join("");
+  $("#score").textContent=score+" / "+qs.length;
+  $$("#quiz .q").forEach(qel=>{
+    const i=+qel.dataset.i;
+    $$(".opt",qel).forEach(b=>b.addEventListener("click",()=>{
+      if(answered.has(i))return;
+      answered.add(i);
+      const j=+b.dataset.j;
+      if(j===qs[i].a){b.classList.add("right");score++;}
+      else{b.classList.add("wrong");$$(".opt",qel)[qs[i].a].classList.add("right");}
+      $(".exp",qel).classList.add("show");
+      $("#score").textContent=score+" / "+qs.length;
+    }));
+  });
+}
+$("#qReset").addEventListener("click",()=>{score=0;answered=new Set();quizRender();annotate($("main"));});
+quizRender();
+
+/* ---------- glossary + abbr ---------- */
+const ABBR={
+ "UAV":"Unmanned Aerial Vehicle — the aircraft itself",
+ "GNSS":"Global Navigation Satellite System — GPS, GLONASS, Galileo, NavIC etc.",
+ "IMU":"Inertial Measurement Unit — gyroscopes + accelerometers giving attitude",
+ "EM":"Electromagnetic — the spectrum of radiation remote sensing measures",
+ "RGB":"Red-Green-Blue — the three visible channels of an ordinary camera",
+ "BGR":"Blue-Green-Red — OpenCV's channel order for loaded images",
+ "NIR":"Near-InfraRed — ≈750–1100 nm; strongly reflected by healthy vegetation",
+ "SWIR":"ShortWave InfraRed — ≈1.1–3 µm; sensitive to moisture content",
+ "TIR":"Thermal InfraRed — ≈8–14 µm emitted heat; works day and night",
+ "NDVI":"Normalised Difference Vegetation Index = (NIR − Red)/(NIR + Red)",
+ "NDRE":"Normalised Difference Red Edge index — early crop-stress indicator",
+ "GSD":"Ground Sample Distance — real-world size of one pixel on the ground",
+ "LiDAR":"Light Detection and Ranging — active laser scanning sensor",
+ "SAR":"Synthetic Aperture Radar — active microwave imaging",
+ "PRR":"Pulse Repetition Rate — laser pulses fired per second",
+ "FOV":"Field Of View — the angular width the scanner sweeps",
+ "AGL":"Above Ground Level — height measured from the terrain below",
+ "LAS":"The open binary file standard for LiDAR point clouds",
+ "LAZ":"Losslessly compressed LAS (≈ 7–10× smaller)",
+ "ASPRS":"American Society for Photogrammetry and Remote Sensing — defines LAS classes",
+ "SfM":"Structure from Motion — recovering camera poses + sparse 3D from overlapping photos",
+ "MVS":"Multi-View Stereo — dense per-pixel depth estimation after SfM",
+ "DEM":"Digital Elevation Model — umbrella term for gridded elevation",
+ "DSM":"Digital Surface Model — elevation of the top surface (canopy, roofs)",
+ "DTM":"Digital Terrain Model — bare-earth elevation",
+ "CHM":"Canopy Height Model = DSM − DTM",
+ "TIN":"Triangulated Irregular Network — surface built from triangles",
+ "QC":"Quality Check / control",
+ "GIS":"Geographic Information System — where the products are analysed (QGIS, ArcGIS)",
+ "CAD":"Computer-Aided Design software",
+ "CRS":"Coordinate Reference System — datum + projection, e.g. WGS-84 / UTM",
+ "UTM":"Universal Transverse Mercator — the metre-based projected grid",
+ "EXIF":"Exchangeable Image File format — metadata (incl. position) inside photos",
+ "GCP":"Ground Control Point — surveyed target used to anchor the model",
+ "RTK":"Real-Time Kinematic — cm-level GNSS corrections applied live in flight",
+ "PPK":"Post-Processed Kinematic — the same corrections computed after landing",
+ "NTRIP":"Networked Transport of RTCM via Internet Protocol — correction streaming",
+ "RMSE":"Root Mean Square Error — the standard accuracy statistic from checkpoints",
+ "SaaS":"Software as a Service — cloud software on subscription",
+ "GPU":"Graphics Processing Unit — the parallel hardware dense matching loves",
+ "CPU":"Central Processing Unit",
+ "API":"Application Programming Interface",
+ "ODM":"OpenDroneMap — open-source photogrammetry suite (WebODM = its web front end)",
+ "PDAL":"Point Data Abstraction Library — open-source point-cloud pipelines",
+ "M3C2":"Multiscale Model-to-Model Cloud Comparison — change detection between clouds",
+ "HSV":"Hue-Saturation-Value colour space (OpenCV hue range 0–179)",
+ "LAB":"L*a*b* colour space — L is lightness; CLAHE is applied on L",
+ "CLAHE":"Contrast-Limited Adaptive Histogram Equalisation",
+ "CDF":"Cumulative Distribution Function — running total of the histogram",
+ "LoG":"Laplacian of Gaussian — smooth first, then take the second derivative",
+ "NMS":"Non-Maximum Suppression — keep only local gradient peaks (thin edges)",
+ "ROI":"Region Of Interest — a sub-rectangle of the image",
+ "SIFT":"Scale-Invariant Feature Transform — classic keypoint detector/descriptor",
+ "HOG":"Histogram of Oriented Gradients — feature used with SVM for detection",
+ "SVM":"Support Vector Machine — classical machine-learning classifier",
+ "YOLO":"You Only Look Once — modern deep-learning object detector",
+ "SSD":"Single Shot Detector — another deep-learning detector",
+ "XML":"eXtensible Markup Language — format of pretrained Haar cascade files",
+ "FPV":"First-Person View — live pilot video feed",
+ "fps":"frames per second"
+};
+const aKeys=Object.keys(ABBR).sort((a,b)=>b.length-a.length);
+const aEsc=s=>s.replace(/[.*+?^${}()|[\]\\\-]/g,"\\$&");
+const aPat="(?:^|(?<=[^A-Za-z0-9]))("+aKeys.map(aEsc).join("|")+")(?![A-Za-z0-9])";
+let rxG,rxT;
+try{ rxG=new RegExp(aPat,"g"); rxT=new RegExp(aPat); }
+catch(e){ rxG=new RegExp("\\b("+aKeys.map(aEsc).join("|")+")\\b","g"); rxT=new RegExp("\\b("+aKeys.map(aEsc).join("|")+")\\b"); }
+
+function annotate(root){
+  if(!root) return;
+  const bad={SCRIPT:1,STYLE:1,ABBR:1,BUTTON:1,INPUT:1,TEXTAREA:1,H1:1,H2:1,TITLE:1,PRE:1,CANVAS:1};
+  const nodes=[], w=document.createTreeWalker(root,NodeFilter.SHOW_TEXT,null);
+  while(w.nextNode()){
+    const n=w.currentNode;
+    if(!n.nodeValue||!rxT.test(n.nodeValue)) continue;
+    let p=n.parentNode, ok=true;
+    while(p&&p!==root.parentNode){
+      if(p.nodeType===1){
+        if(p.namespaceURI==="http://www.w3.org/2000/svg"||bad[p.tagName]){ok=false;break;}
+        if(p.classList&&p.classList.contains("no-abbr")){ok=false;break;}
+      }
+      p=p.parentNode;
+    }
+    if(ok) nodes.push(n);
+  }
+  nodes.forEach(n=>{
+    const s=n.nodeValue, frag=document.createDocumentFragment();
+    let last=0,m; rxG.lastIndex=0;
+    while((m=rxG.exec(s))!==null){
+      const term=m[1], at=m.index+m[0].length-term.length;
+      if(at>last) frag.appendChild(document.createTextNode(s.slice(last,at)));
+      const a=document.createElement("abbr");
+      a.title=ABBR[term]; a.textContent=term; frag.appendChild(a);
+      last=at+term.length;
+      if(rxG.lastIndex===m.index) rxG.lastIndex++;
+    }
+    if(last<s.length) frag.appendChild(document.createTextNode(s.slice(last)));
+    if(frag.childNodes.length) n.parentNode.replaceChild(frag,n);
+  });
+}
+
+const pop=document.createElement("div"); pop.className="abbr-pop"; document.body.appendChild(pop);
+let popT;
+document.addEventListener("click",e=>{
+  const t=e.target, a=(t&&t.closest)?t.closest("abbr[title]"):null;
+  if(a){ pop.textContent=a.textContent+" · "+a.title; pop.classList.add("on");
+    clearTimeout(popT); popT=setTimeout(()=>pop.classList.remove("on"),4500); }
+  setTimeout(()=>annotate($("main")),40);
+});
+
+(function glossary(){
+  const gl=$("#gloss");
+  gl.innerHTML=Object.keys(ABBR).sort((a,b)=>a.toLowerCase().localeCompare(b.toLowerCase()))
+    .map(k=>"<div data-k=\""+(k+" "+ABBR[k]).toLowerCase().replace(/"/g,"")+"\"><b>"+k+"</b> — "+ABBR[k]+"</div>").join("");
+  $("#glossQ").addEventListener("input",e=>{
+    const q=e.target.value.trim().toLowerCase();
+    $$("#gloss div").forEach(d=>{ d.style.display=(!q||d.dataset.k.indexOf(q)>-1)?"":"none"; });
+  });
+})();
+
+annotate($("main"));
+})();
+</script>
+</body>
+</html>
