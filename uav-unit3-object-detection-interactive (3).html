@@ -1,0 +1,1993 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Unit III · UAV Object Detection Architectures — Flight Plan Notes</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Saira+Condensed:wght@500;600;700;800&family=Spectral:ital,wght@0,400;0,500;0,600;1,400&family=IBM+Plex+Mono:wght@400;500;600&display=swap');
+
+:root{
+  --chart:#E4E8D8;        /* sectional chart paper */
+  --vellum:#F6F7F0;       /* panel */
+  --ink:#151B13;
+  --ink2:#4C5548;
+  --magenta:#B3157E;      /* airspace magenta */
+  --blue:#1E5F8C;         /* controlled airspace blue */
+  --amber:#D98200;        /* caution */
+  --rule:rgba(21,27,19,.16);
+  --rule-2:rgba(21,27,19,.34);
+  --disp:'Saira Condensed','Arial Narrow',sans-serif;
+  --body:'Spectral',Georgia,serif;
+  --mono:'IBM Plex Mono',ui-monospace,Consolas,monospace;
+}
+
+*{box-sizing:border-box}
+html{scroll-behavior:smooth;scroll-padding-top:96px}
+body{
+  margin:0;background:var(--chart);color:var(--ink);font-family:var(--body);
+  font-size:16px;line-height:1.62;
+  background-image:
+    linear-gradient(rgba(21,27,19,.045) 1px,transparent 1px),
+    linear-gradient(90deg,rgba(21,27,19,.045) 1px,transparent 1px);
+  background-size:34px 34px;
+}
+h1,h2,h3,h4{font-family:var(--disp);text-transform:uppercase;letter-spacing:.045em;line-height:1.05;margin:0}
+p{margin:0 0 .85em}
+a{color:var(--blue)}
+:focus-visible{outline:2.5px solid var(--magenta);outline-offset:3px}
+
+/* ---------- top bar ---------- */
+.hud{position:sticky;top:0;z-index:40;background:rgba(228,232,216,.93);backdrop-filter:blur(7px);
+  border-bottom:1.5px solid var(--rule-2)}
+.hud-in{max-width:1280px;margin:0 auto;padding:9px 20px;display:flex;align-items:center;gap:18px}
+.hud-id{font-family:var(--mono);font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--ink2)}
+.hud-id b{color:var(--magenta);font-weight:600}
+.hud-title{font-family:var(--disp);font-weight:800;font-size:17px;letter-spacing:.06em;margin-right:auto}
+.hud-prog{display:flex;align-items:center;gap:9px;font-family:var(--mono);font-size:11px;color:var(--ink2)}
+.prog-track{width:130px;height:5px;background:rgba(21,27,19,.14);border-radius:0}
+.prog-fill{height:100%;width:0;background:var(--magenta);transition:width .25s}
+
+/* ---------- shell ---------- */
+.shell{max-width:1280px;margin:0 auto;padding:0 20px 90px;display:grid;grid-template-columns:216px 1fr;gap:40px}
+.rail{position:sticky;top:96px;align-self:start;height:max-content;padding-top:26px}
+.rail-h{font-family:var(--mono);font-size:10px;letter-spacing:.2em;text-transform:uppercase;color:var(--ink2);margin-bottom:10px;padding-bottom:7px;border-bottom:1px solid var(--rule-2)}
+.rail a{display:flex;gap:9px;align-items:baseline;padding:4px 0;text-decoration:none;color:var(--ink2);font-family:var(--disp);
+  font-size:14px;letter-spacing:.05em;text-transform:uppercase;border-bottom:1px dotted transparent}
+.rail a span{font-family:var(--mono);font-size:10px;color:var(--magenta);min-width:20px}
+.rail a:hover{color:var(--ink)}
+.rail a.on{color:var(--ink);font-weight:700}
+.rail a.on span{background:var(--magenta);color:var(--vellum);padding:1px 3px}
+
+/* ---------- hero ---------- */
+.hero{padding:34px 0 8px}
+.eyebrow{font-family:var(--mono);font-size:11px;letter-spacing:.24em;text-transform:uppercase;color:var(--magenta)}
+.hero h1{font-size:clamp(38px,6.4vw,74px);font-weight:800;margin:10px 0 6px;letter-spacing:.02em}
+.hero h1 em{font-style:normal;color:var(--magenta)}
+.hero-sub{max-width:56ch;color:var(--ink2);font-size:17px}
+.chartbox{margin-top:22px;border:1.5px solid var(--rule-2);background:var(--vellum);position:relative;overflow:hidden}
+.chartbox svg{display:block;width:100%;height:auto}
+.chart-cap{display:flex;flex-wrap:wrap;gap:6px 20px;padding:9px 14px;border-top:1px solid var(--rule);font-family:var(--mono);
+  font-size:10.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink2)}
+.wp{cursor:pointer}
+.wp circle{transition:r .18s,fill .18s}
+.wp:hover circle.hit{r:15}
+.wp:hover text{fill:var(--magenta)}
+
+/* ---------- sections ---------- */
+.leg{padding:52px 0 8px;border-top:1.5px solid var(--rule-2);margin-top:44px}
+.leg-head{display:flex;gap:14px;align-items:flex-start;margin-bottom:20px}
+.leg-no{font-family:var(--mono);font-size:11px;letter-spacing:.14em;color:var(--vellum);background:var(--ink);padding:3px 6px;margin-top:5px}
+.leg h2{font-size:clamp(25px,3.6vw,38px);font-weight:800}
+.leg-kicker{font-family:var(--mono);font-size:10.5px;letter-spacing:.18em;text-transform:uppercase;color:var(--magenta);margin-bottom:4px}
+.lede{font-size:17.5px;max-width:66ch}
+
+.panel{background:var(--vellum);border:1.5px solid var(--rule-2);padding:20px 22px;margin:20px 0}
+.panel-t{font-family:var(--disp);font-weight:700;font-size:16px;letter-spacing:.09em;text-transform:uppercase;
+  display:flex;align-items:center;gap:9px;margin-bottom:14px;padding-bottom:9px;border-bottom:1px solid var(--rule)}
+.panel-t::before{content:"";width:9px;height:9px;background:var(--magenta);flex:none;transform:rotate(45deg)}
+.panel-t small{margin-left:auto;font-family:var(--mono);font-size:10px;letter-spacing:.14em;color:var(--ink2);text-transform:uppercase;font-weight:400}
+
+.two{display:grid;grid-template-columns:1fr 1fr;gap:22px}
+.three{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
+
+/* key list */
+ul.kl{list-style:none;padding:0;margin:0}
+ul.kl li{padding:7px 0 7px 20px;border-bottom:1px dotted var(--rule-2);position:relative}
+ul.kl li:last-child{border-bottom:0}
+ul.kl li::before{content:"▸";position:absolute;left:0;color:var(--magenta);font-size:12px;top:8px}
+ul.kl b{font-family:var(--disp);font-size:16px;letter-spacing:.04em;text-transform:uppercase}
+.mono{font-family:var(--mono);font-size:12.5px}
+.def{border-left:3px solid var(--magenta);padding:2px 0 2px 14px;margin:14px 0;font-size:17px}
+.note{background:rgba(217,130,0,.1);border:1px solid rgba(217,130,0,.45);padding:11px 14px;font-size:14.5px;margin:14px 0}
+.note b{font-family:var(--disp);letter-spacing:.06em;text-transform:uppercase;color:var(--amber)}
+.formula{font-family:var(--mono);font-size:14px;background:#fff;border:1.5px solid var(--rule-2);border-left:3px solid var(--blue);
+  padding:11px 14px;margin:14px 0;line-height:1.7;overflow-x:auto}
+
+/* table */
+table.t{width:100%;border-collapse:collapse;font-size:14px}
+table.t th{font-family:var(--mono);font-size:10px;letter-spacing:.14em;text-transform:uppercase;text-align:left;
+  padding:8px 9px;border-bottom:1.5px solid var(--ink);color:var(--ink2)}
+table.t td{padding:8px 9px;border-bottom:1px solid var(--rule);vertical-align:top}
+table.t tr:hover td{background:rgba(179,21,126,.06)}
+table.t td.hl{color:var(--magenta);font-weight:600}
+
+/* controls (kept for later interactivity) */
+.ctl{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:14px}
+button.chip{font-family:var(--disp);font-size:14px;letter-spacing:.06em;text-transform:uppercase;padding:6px 13px;
+  background:transparent;border:1.5px solid var(--rule-2);color:var(--ink2);cursor:pointer}
+button.chip:hover{border-color:var(--ink);color:var(--ink)}
+button.chip.on{background:var(--ink);border-color:var(--ink);color:var(--vellum)}
+button.chip.mag.on{background:var(--magenta);border-color:var(--magenta)}
+.detail{margin-top:14px;border-top:1px solid var(--rule);padding-top:12px}
+.detail h4{font-size:19px;margin-bottom:3px}
+.detail .spec{font-family:var(--mono);font-size:11.5px;color:var(--magenta);letter-spacing:.06em;margin-bottom:7px}
+
+/* readouts */
+.reads{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:1.5px;background:var(--rule-2);border:1.5px solid var(--rule-2)}
+.read{background:var(--vellum);padding:10px 12px}
+.read i{font-style:normal;display:block;font-family:var(--mono);font-size:9.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--ink2)}
+.read b{display:block;font-family:var(--disp);font-size:26px;font-weight:700;letter-spacing:.02em;line-height:1.15}
+.read b s{text-decoration:none;font-size:13px;color:var(--ink2);font-weight:500}
+.read.warn b{color:var(--amber)} .read.bad b{color:var(--magenta)} .read.good b{color:var(--blue)}
+
+/* cards */
+.cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(232px,1fr));gap:12px}
+.card{border:1.5px solid var(--rule-2);background:var(--vellum);padding:14px}
+.card h4{font-size:16px;margin-bottom:5px}
+.card .tag{font-family:var(--mono);font-size:9.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--magenta)}
+.card p{font-size:14px;margin:6px 0 0;color:var(--ink2)}
+
+/* self-check (native details) */
+.q{border-bottom:1px solid var(--rule);padding:12px 0}
+.q:last-child{border-bottom:0}
+.q summary{font-weight:600;cursor:pointer;list-style:none;padding-left:22px;position:relative}
+.q summary::-webkit-details-marker{display:none}
+.q summary::before{content:"?";position:absolute;left:0;top:0;font-family:var(--mono);font-size:12px;color:var(--vellum);
+  background:var(--magenta);width:16px;height:16px;text-align:center;line-height:16px}
+.q[open] summary::before{content:"✓";background:var(--blue)}
+.q .ans{font-size:13.5px;color:var(--ink2);border-left:3px solid var(--blue);padding-left:11px;margin-top:9px}
+.q .ans b{color:var(--ink)}
+
+/* misc */
+.stat-row{display:flex;flex-wrap:wrap;gap:10px;font-family:var(--mono);font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink2)}
+.foot{margin-top:52px;border-top:1.5px solid var(--rule-2);padding-top:16px;font-family:var(--mono);font-size:11px;letter-spacing:.1em;
+  text-transform:uppercase;color:var(--ink2);display:flex;flex-wrap:wrap;gap:14px;justify-content:space-between}
+.badge{display:inline-block;font-family:var(--mono);font-size:10px;letter-spacing:.12em;text-transform:uppercase;
+  border:1px solid var(--rule-2);padding:1px 6px;color:var(--ink2)}
+
+/* figures */
+.fig{margin:20px 0;border:1.5px solid var(--rule-2);background:var(--vellum);padding:16px 18px 12px}
+.fig svg{display:block;width:100%;height:auto}
+.fig figcaption{margin-top:11px;padding-top:9px;border-top:1px solid var(--rule);font-family:var(--mono);
+  font-size:11px;letter-spacing:.05em;color:var(--ink2);line-height:1.55}
+.fig figcaption b{color:var(--magenta);letter-spacing:.14em;margin-right:6px}
+
+/* abbreviations */
+abbr[title]{border-bottom:1px dotted var(--magenta);text-decoration:none;cursor:help}
+abbr[title]:hover{background:rgba(179,21,126,.1)}
+
+/* key takeaways */
+.tk{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:1.5px;background:var(--rule-2);border:1.5px solid var(--rule-2)}
+.tk-item{background:var(--vellum);padding:17px 18px;display:flex;gap:14px;align-items:flex-start}
+.tk-item i{font-style:normal;font-family:var(--disp);font-size:30px;font-weight:800;color:var(--magenta);line-height:.9;min-width:36px}
+.tk-item h4{font-size:16.5px;margin-bottom:5px}
+.tk-item p{font-size:14.5px;margin:0;color:var(--ink2);line-height:1.55}
+.headline{border:1.5px solid var(--ink);background:var(--ink);color:var(--chart);padding:20px 22px;margin:20px 0}
+.headline h3{font-size:clamp(19px,2.6vw,26px);color:var(--chart);margin-bottom:8px}
+.headline p{margin:0;font-size:16px;opacity:.9}
+.headline b{color:#F09CD0}
+
+/* glossary */
+.gloss{column-count:2;column-gap:28px}
+.gloss div{break-inside:avoid;padding:5px 0;border-bottom:1px dotted var(--rule);font-size:14px;line-height:1.45}
+.gloss b{font-family:var(--mono);font-size:12px;color:var(--magenta);letter-spacing:.03em}
+
+@media(max-width:960px){
+  .shell{grid-template-columns:1fr;gap:0}
+  .rail{position:static;padding:16px 0 0;display:flex;gap:8px;overflow-x:auto;border-bottom:1px solid var(--rule)}
+  .rail-h{display:none}
+  .rail a{flex:none;border:1px solid var(--rule-2);padding:4px 9px;font-size:12.5px}
+  .two,.three{grid-template-columns:1fr}
+  .gloss{column-count:1}
+}
+@media(prefers-reduced-motion:reduce){
+  *{animation:none!important;transition:none!important}
+  html{scroll-behavior:auto}
+}
+
+/* ============================================================
+   INTERACTIVE PLAYGROUNDS — styled as instrument panels on the
+   sectional chart. Reuses the page palette + type tokens.
+   ============================================================ */
+.pg{border:1.5px solid var(--rule-2);background:var(--vellum);margin:22px 0;overflow:hidden}
+.pg-bar{display:flex;align-items:center;gap:10px;padding:9px 14px;background:var(--ink);color:var(--chart)}
+.pg-bar .pg-live{font-family:var(--mono);font-size:9px;letter-spacing:.18em;text-transform:uppercase;
+  border:1px solid rgba(246,247,240,.4);padding:1px 6px;color:#F09CD0}
+.pg-bar h4{font-family:var(--disp);font-weight:800;font-size:15px;letter-spacing:.07em;text-transform:uppercase;color:var(--chart)}
+.pg-bar small{margin-left:auto;font-family:var(--mono);font-size:9.5px;letter-spacing:.14em;text-transform:uppercase;color:rgba(246,247,240,.62)}
+.pg-body{padding:16px 16px 14px}
+.pg-stage{position:relative;border:1.5px solid var(--rule-2);background:#C7CEB6;overflow:hidden}
+.pg-stage svg{display:block;width:100%;height:auto;touch-action:none}
+.pg-hint{font-family:var(--mono);font-size:10.5px;letter-spacing:.04em;color:var(--ink2);margin:9px 2px 0;line-height:1.5}
+.pg-hint b{color:var(--magenta)}
+
+/* control strip */
+.pg-ctl{display:flex;flex-wrap:wrap;gap:14px 18px;align-items:flex-end;margin:14px 0 2px}
+.pg-f{display:flex;flex-direction:column;gap:5px;min-width:132px}
+.pg-f label{font-family:var(--mono);font-size:9.5px;letter-spacing:.13em;text-transform:uppercase;color:var(--ink2);display:flex;justify-content:space-between;gap:8px}
+.pg-f label b{color:var(--magenta);font-weight:600}
+.pg-f input[type=range]{-webkit-appearance:none;appearance:none;width:100%;height:4px;background:var(--rule-2);outline:none;cursor:pointer}
+.pg-f input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;appearance:none;width:15px;height:15px;background:var(--magenta);border:2px solid var(--vellum);cursor:pointer;box-shadow:0 0 0 1px var(--magenta)}
+.pg-f input[type=range]::-moz-range-thumb{width:15px;height:15px;background:var(--magenta);border:2px solid var(--vellum);cursor:pointer}
+.pg-btns{display:flex;flex-wrap:wrap;gap:8px}
+.pg-btn{font-family:var(--disp);font-size:13px;letter-spacing:.06em;text-transform:uppercase;padding:6px 14px;
+  background:transparent;border:1.5px solid var(--rule-2);color:var(--ink);cursor:pointer;transition:background .15s,color .15s,border-color .15s}
+.pg-btn:hover{border-color:var(--ink)}
+.pg-btn.pri{background:var(--magenta);border-color:var(--magenta);color:var(--vellum)}
+.pg-btn.pri:hover{background:#8f0f64}
+.pg-btn:disabled{opacity:.4;cursor:not-allowed}
+.pg-btn.tog.on{background:var(--ink);border-color:var(--ink);color:var(--vellum)}
+
+/* segmented selector */
+.pg-seg{display:inline-flex;border:1.5px solid var(--rule-2)}
+.pg-seg button{font-family:var(--disp);font-size:12.5px;letter-spacing:.05em;text-transform:uppercase;padding:6px 12px;
+  background:transparent;border:0;border-left:1.5px solid var(--rule-2);color:var(--ink2);cursor:pointer}
+.pg-seg button:first-child{border-left:0}
+.pg-seg button.on{background:var(--magenta);color:var(--vellum)}
+.pg-seg button:disabled{opacity:.32;cursor:not-allowed;text-decoration:line-through}
+
+/* readouts row (mirrors .reads on page) */
+.pg-reads{display:grid;grid-template-columns:repeat(auto-fit,minmax(104px,1fr));gap:1.5px;background:var(--rule-2);border:1.5px solid var(--rule-2);margin-top:14px}
+.pg-read{background:var(--vellum);padding:9px 11px}
+.pg-read i{font-style:normal;display:block;font-family:var(--mono);font-size:9px;letter-spacing:.13em;text-transform:uppercase;color:var(--ink2)}
+.pg-read b{display:block;font-family:var(--disp);font-size:23px;font-weight:700;line-height:1.15}
+.pg-read.mag b{color:var(--magenta)} .pg-read.blue b{color:var(--blue)} .pg-read.amber b{color:var(--amber)}
+.pg-read b s{text-decoration:none;font-size:11px;color:var(--ink2);font-weight:500}
+
+/* verdict pill */
+.pg-verdict{font-family:var(--disp);font-size:13px;letter-spacing:.05em;text-transform:uppercase;padding:3px 9px;border:1.5px solid;display:inline-block}
+.pg-verdict.tp{color:var(--blue);border-color:var(--blue)}
+.pg-verdict.fp{color:var(--magenta);border-color:var(--magenta)}
+.pg-verdict.fn{color:var(--amber);border-color:var(--amber)}
+
+/* generation ledger / config readout */
+.pg-code{font-family:var(--mono);font-size:12px;background:#fff;border:1.5px solid var(--rule-2);border-left:3px solid var(--blue);
+  padding:11px 13px;margin-top:12px;line-height:1.7;overflow-x:auto;white-space:pre-wrap}
+.pg-code .k{color:var(--blue)} .pg-code .v{color:var(--magenta)} .pg-code .c{color:var(--ink2)}
+
+.pg-note{background:rgba(217,130,0,.1);border:1px solid rgba(217,130,0,.45);padding:9px 12px;font-size:13px;margin-top:12px}
+.pg-note b{font-family:var(--disp);letter-spacing:.05em;text-transform:uppercase;color:var(--amber)}
+
+.pg-two{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+@media(max-width:720px){.pg-two{grid-template-columns:1fr}}
+
+</style>
+</head>
+<body>
+
+<div class="hud">
+  <div class="hud-in">
+    <div class="hud-id">UNIT <b>III</b></div>
+    <div class="hud-title">UAV Object Detection Architectures</div>
+    <div class="hud-prog"><span id="progTxt">0%</span><div class="prog-track"><div class="prog-fill" id="progFill"></div></div></div>
+  </div>
+</div>
+
+<div class="shell">
+
+  <nav class="rail no-abbr" id="rail">
+    <div class="rail-h">Route / 11 legs + arrival</div>
+    <a href="#l1"><span>01</span>Detection problem</a>
+    <a href="#l2"><span>02</span>Bounding boxes</a>
+    <a href="#l3"><span>03</span>Detection metrics</a>
+    <a href="#l4"><span>04</span>Architectures</a>
+    <a href="#l5"><span>05</span>R-CNN</a>
+    <a href="#l6"><span>06</span>Fast R-CNN</a>
+    <a href="#l7"><span>07</span>Faster R-CNN</a>
+    <a href="#l8"><span>08</span>YOLO</a>
+    <a href="#l9"><span>09</span>Detectron2</a>
+    <a href="#l10"><span>10</span>Choosing for UAV</a>
+    <a href="#l11"><span>11</span>Revision + quiz</a>
+    <a href="#l12"><span>◆</span>Key takeaways</a>
+  </nav>
+
+  <main>
+
+  <!-- ================= HERO ================= -->
+  <header class="hero">
+    <div class="eyebrow">Flight plan · Aerial perception · Semester notes</div>
+    <h1>Teach the drone<br>to <em>see</em> objects.</h1>
+    <p class="hero-sub">Eleven waypoints, from the difference between classifying and detecting an image to the two great families of detectors — the accurate two-stage R-CNN line and the real-time single-shot YOLO line — and how you decide which one belongs onboard a UAV.</p>
+
+    <div class="chartbox">
+      <svg viewBox="0 0 940 372" role="img" aria-label="Sectional chart showing the eleven topics of this unit as route waypoints">
+        <defs>
+          <path id="rt" d="M60 312 L150 262 L240 292 L330 210 L420 246 L510 166 L600 200 L690 128 L770 168 L840 104 L895 70" fill="none"/>
+          <pattern id="hatch" width="7" height="7" patternTransform="rotate(45)" patternUnits="userSpaceOnUse">
+            <line x1="0" y1="0" x2="0" y2="7" stroke="#B3157E" stroke-width="1" opacity=".28"/>
+          </pattern>
+        </defs>
+        <rect width="940" height="372" fill="#F6F7F0"/>
+        <g opacity=".5" stroke="#4C5548" stroke-width=".5">
+          <path d="M120 372 Q200 300 160 210 T230 60" fill="none" opacity=".5"/>
+          <path d="M400 372 Q460 290 420 200 T520 40" fill="none" opacity=".35"/>
+          <path d="M700 372 Q760 300 720 190 T820 30" fill="none" opacity=".35"/>
+        </g>
+        <circle cx="255" cy="118" r="66" fill="url(#hatch)" stroke="#B3157E" stroke-width="1.4" stroke-dasharray="7 5" opacity=".85"/>
+        <text x="255" y="52" text-anchor="middle" font-family="IBM Plex Mono,monospace" font-size="9" letter-spacing="1.6" fill="#B3157E">TWO-STAGE · ACCURACY ZONE</text>
+        <path d="M560 372 L600 300 L680 318 L730 372 Z" fill="#1E5F8C" opacity=".1"/>
+        <text x="640" y="345" text-anchor="middle" font-family="IBM Plex Mono,monospace" font-size="8.5" letter-spacing="1.4" fill="#1E5F8C">ONE-STAGE · REAL-TIME ZONE</text>
+
+        <use href="#rt" stroke="#151B13" stroke-width="2" stroke-dasharray="9 6" opacity=".85"/>
+
+        <!-- waypoints (static) -->
+        <g class="wp"><circle class="hit" cx="60" cy="312" r="12" fill="#F6F7F0" fill-opacity=".01"/><circle cx="60" cy="312" r="6.5" fill="none" stroke="#151B13" stroke-width="1.6"/><circle cx="60" cy="312" r="2.4" fill="#B3157E"/><text x="60" y="299" text-anchor="middle" font-family="IBM Plex Mono,monospace" font-size="9.5" fill="#151B13">01</text></g>
+        <g class="wp"><circle class="hit" cx="150" cy="262" r="12" fill="#F6F7F0" fill-opacity=".01"/><circle cx="150" cy="262" r="6.5" fill="none" stroke="#151B13" stroke-width="1.6"/><circle cx="150" cy="262" r="2.4" fill="#B3157E"/><text x="150" y="249" text-anchor="middle" font-family="IBM Plex Mono,monospace" font-size="9.5" fill="#151B13">02</text></g>
+        <g class="wp"><circle class="hit" cx="240" cy="292" r="12" fill="#F6F7F0" fill-opacity=".01"/><circle cx="240" cy="292" r="6.5" fill="none" stroke="#151B13" stroke-width="1.6"/><circle cx="240" cy="292" r="2.4" fill="#B3157E"/><text x="240" y="279" text-anchor="middle" font-family="IBM Plex Mono,monospace" font-size="9.5" fill="#151B13">03</text></g>
+        <g class="wp"><circle class="hit" cx="330" cy="210" r="12" fill="#F6F7F0" fill-opacity=".01"/><circle cx="330" cy="210" r="6.5" fill="none" stroke="#151B13" stroke-width="1.6"/><circle cx="330" cy="210" r="2.4" fill="#B3157E"/><text x="330" y="197" text-anchor="middle" font-family="IBM Plex Mono,monospace" font-size="9.5" fill="#151B13">04</text></g>
+        <g class="wp"><circle class="hit" cx="420" cy="246" r="12" fill="#F6F7F0" fill-opacity=".01"/><circle cx="420" cy="246" r="6.5" fill="none" stroke="#151B13" stroke-width="1.6"/><circle cx="420" cy="246" r="2.4" fill="#B3157E"/><text x="420" y="233" text-anchor="middle" font-family="IBM Plex Mono,monospace" font-size="9.5" fill="#151B13">05</text></g>
+        <g class="wp"><circle class="hit" cx="510" cy="166" r="12" fill="#F6F7F0" fill-opacity=".01"/><circle cx="510" cy="166" r="6.5" fill="none" stroke="#151B13" stroke-width="1.6"/><circle cx="510" cy="166" r="2.4" fill="#B3157E"/><text x="510" y="153" text-anchor="middle" font-family="IBM Plex Mono,monospace" font-size="9.5" fill="#151B13">06</text></g>
+        <g class="wp"><circle class="hit" cx="600" cy="200" r="12" fill="#F6F7F0" fill-opacity=".01"/><circle cx="600" cy="200" r="6.5" fill="none" stroke="#151B13" stroke-width="1.6"/><circle cx="600" cy="200" r="2.4" fill="#B3157E"/><text x="600" y="187" text-anchor="middle" font-family="IBM Plex Mono,monospace" font-size="9.5" fill="#151B13">07</text></g>
+        <g class="wp"><circle class="hit" cx="690" cy="128" r="12" fill="#F6F7F0" fill-opacity=".01"/><circle cx="690" cy="128" r="6.5" fill="none" stroke="#151B13" stroke-width="1.6"/><circle cx="690" cy="128" r="2.4" fill="#B3157E"/><text x="690" y="115" text-anchor="middle" font-family="IBM Plex Mono,monospace" font-size="9.5" fill="#151B13">08</text></g>
+        <g class="wp"><circle class="hit" cx="770" cy="168" r="12" fill="#F6F7F0" fill-opacity=".01"/><circle cx="770" cy="168" r="6.5" fill="none" stroke="#151B13" stroke-width="1.6"/><circle cx="770" cy="168" r="2.4" fill="#B3157E"/><text x="770" y="155" text-anchor="middle" font-family="IBM Plex Mono,monospace" font-size="9.5" fill="#151B13">09</text></g>
+        <g class="wp"><circle class="hit" cx="840" cy="104" r="12" fill="#F6F7F0" fill-opacity=".01"/><circle cx="840" cy="104" r="6.5" fill="none" stroke="#151B13" stroke-width="1.6"/><circle cx="840" cy="104" r="2.4" fill="#B3157E"/><text x="840" y="91" text-anchor="middle" font-family="IBM Plex Mono,monospace" font-size="9.5" fill="#151B13">10</text></g>
+        <g class="wp"><circle class="hit" cx="895" cy="70" r="12" fill="#F6F7F0" fill-opacity=".01"/><circle cx="895" cy="70" r="6.5" fill="none" stroke="#151B13" stroke-width="1.6"/><circle cx="895" cy="70" r="2.4" fill="#B3157E"/><text x="895" y="57" text-anchor="middle" font-family="IBM Plex Mono,monospace" font-size="9.5" fill="#151B13">11</text></g>
+
+        <g transform="translate(880,300)" stroke="#4C5548" fill="none" stroke-width="1">
+          <circle r="21"/><path d="M0,-27 L0,-18 M0,18 L0,27 M-27,0 L-18,0 M18,0 L27,0"/>
+          <path d="M0,-16 L4,4 L0,0 L-4,4 Z" fill="#151B13" stroke="none"/>
+          <text y="-31" text-anchor="middle" font-family="IBM Plex Mono,monospace" font-size="8.5" fill="#151B13">N</text>
+        </g>
+        <g transform="translate(40,352)" font-family="IBM Plex Mono,monospace" font-size="8" fill="#4C5548">
+          <line x1="0" y1="0" x2="80" y2="0" stroke="#4C5548" stroke-width="1.2"/>
+          <line x1="0" y1="-4" x2="0" y2="4" stroke="#4C5548"/><line x1="80" y1="-4" x2="80" y2="4" stroke="#4C5548"/>
+          <text x="86" y="3">1 LEG ≈ 1 EXAM QUESTION</text>
+        </g>
+      </svg>
+      <div class="chart-cap">
+        <span>◆ Waypoint = topic</span><span style="color:#B3157E">▬ Magenta = two-stage / accuracy</span>
+        <span style="color:#1E5F8C">▬ Blue = one-stage / real-time</span><span>Click any waypoint to jump</span>
+      </div>
+    </div>
+  </header>
+
+  <!-- ================= 01 ================= -->
+  <section class="leg" id="l1">
+    <div class="leg-head"><div class="leg-no">WP 01</div><div>
+      <div class="leg-kicker">Departure</div><h2>The Object Detection Problem</h2></div></div>
+
+    <p class="lede"><b>Object detection</b> answers two questions at once for every object in an image: <em>what is it</em> (classification) and <em>where is it</em> (localisation). The output is a set of <b>class-labelled bounding boxes</b>, each with a confidence score. On a UAV this is the perception layer that turns raw video into things a mission can act on — vehicles, people, cattle, cracks, solar panels, a landing pad.</p>
+
+    <div class="def"><b>Four vision tasks, one ladder.</b> <b>Classification</b> = one label for the whole image. <b>Classification + localisation</b> = one label plus one box, for a single dominant object. <b>Object detection</b> = many objects, each its own label and box. <b>Segmentation</b> = a class for every pixel (semantic) or every pixel of every instance (instance). Detection is the middle rung and the one this unit lives on.</div>
+
+    <figure class="fig">
+      <svg viewBox="0 0 920 250" font-family="IBM Plex Mono,monospace" font-size="10" fill="#151B13" role="img" aria-label="Ladder of vision tasks from classification to segmentation">
+        <g stroke="#151B13" fill="none" stroke-width="1.4">
+          <rect x="20"  y="40" width="200" height="150"/>
+          <rect x="252" y="40" width="200" height="150"/>
+          <rect x="484" y="40" width="200" height="150"/>
+          <rect x="716" y="40" width="184" height="150"/>
+        </g>
+        <!-- classification -->
+        <g transform="translate(20,40)">
+          <circle cx="100" cy="80" r="42" fill="#1E5F8C" opacity=".18" stroke="#151B13"/>
+          <text x="100" y="-8" text-anchor="middle" font-weight="600">1 · CLASSIFICATION</text>
+          <text x="100" y="80" text-anchor="middle" font-size="9" fill="#4C5548">"drone"</text>
+          <text x="100" y="140" text-anchor="middle" font-size="8.5" fill="#4C5548">label only, no location</text>
+        </g>
+        <!-- classification + localisation -->
+        <g transform="translate(252,40)">
+          <circle cx="100" cy="82" r="40" fill="#1E5F8C" opacity=".18" stroke="#151B13"/>
+          <rect x="58" y="42" width="84" height="80" fill="none" stroke="#B3157E" stroke-width="1.8"/>
+          <text x="100" y="-8" text-anchor="middle" font-weight="600">2 · + LOCALISATION</text>
+          <text x="100" y="140" text-anchor="middle" font-size="8.5" fill="#4C5548">one label + one box</text>
+        </g>
+        <!-- detection -->
+        <g transform="translate(484,40)">
+          <circle cx="70" cy="70" r="26" fill="#1E5F8C" opacity=".18" stroke="#151B13"/>
+          <rect x="44" y="44" width="52" height="52" fill="none" stroke="#B3157E" stroke-width="1.8"/>
+          <circle cx="140" cy="120" r="20" fill="#D98200" opacity=".22" stroke="#151B13"/>
+          <rect x="120" y="100" width="40" height="40" fill="none" stroke="#B3157E" stroke-width="1.8"/>
+          <text x="100" y="-8" text-anchor="middle" font-weight="600">3 · DETECTION</text>
+          <text x="100" y="140" text-anchor="middle" font-size="8.5" fill="#4C5548">many labels + many boxes</text>
+        </g>
+        <!-- segmentation -->
+        <g transform="translate(716,40)">
+          <path d="M40 100 Q60 50 100 60 Q150 72 140 118 Q120 150 70 140 Q30 130 40 100 Z" fill="#B3157E" opacity=".3" stroke="#151B13"/>
+          <text x="92" y="-8" text-anchor="middle" font-weight="600">4 · SEGMENTATION</text>
+          <text x="92" y="140" text-anchor="middle" font-size="8.5" fill="#4C5548">a class per pixel</text>
+        </g>
+        <text x="20" y="230" font-size="9" fill="#4C5548">Difficulty and compute both rise left → right. Detection is the practical sweet spot for most UAV missions.</text>
+      </svg>
+      <figcaption><b>FIG 3.1</b> The vision-task ladder. This unit is about rung 3 — outputting a class and a box for every object at once.</figcaption>
+    </figure>
+
+    <div class="two">
+      <div class="panel">
+        <div class="panel-t">Why detection is hard</div>
+        <ul class="kl">
+          <li><b>Variable count</b> — the number of objects is unknown and changes per frame, so the output size is not fixed.</li>
+          <li><b>Scale &amp; viewpoint</b> — the same object appears tiny or huge; UAV nadir and oblique views are unlike ground-level training data.</li>
+          <li><b>Occlusion &amp; clutter</b> — objects overlap, hide behind each other, and blend into busy backgrounds.</li>
+          <li><b>Localisation vs classification</b> — one head must regress geometry, another must name the class; they are trained together.</li>
+          <li><b>Real-time budget</b> — onboard, the answer is worthless if it arrives after the aircraft has moved past the scene.</li>
+        </ul>
+      </div>
+      <div class="panel">
+        <div class="panel-t">The UAV angle</div>
+        <ul class="kl">
+          <li><b>Small objects</b> — from altitude, a person is a handful of pixels; small-object recall is the headline UAV challenge.</li>
+          <li><b>Dense scenes</b> — crowds, parked cars and orchards pack many boxes into a frame, stressing NMS and anchors.</li>
+          <li><b>Motion &amp; blur</b> — airframe vibration and forward speed smear fast-moving targets.</li>
+          <li><b>Edge compute</b> — a Jetson-class board, not a data-centre GPU, sets the model you can actually run.</li>
+          <li><b>Onboard vs offload</b> — detect live for real-time reaction, or record and run a heavier model on the ground.</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="note"><b>Exam line</b> — Do not conflate the tasks. "Object detection labels the whole image" is wrong — that is classification. Detection outputs <em>multiple</em> class-labelled boxes, one per object instance.</div>
+  </section>
+
+  <!-- ================= 02 ================= -->
+  <section class="leg" id="l2">
+    <div class="leg-head"><div class="leg-no">WP 02</div><div>
+      <div class="leg-kicker">Geometry</div><h2>Bounding Boxes</h2></div></div>
+
+    <p class="lede">A <b>bounding box</b> is the axis-aligned rectangle that tightly encloses an object. It is the fundamental output geometry of detection — every architecture in this unit ultimately regresses four numbers per object that describe one box.</p>
+
+    <div class="panel">
+      <div class="panel-t">Three ways to write the same box <small>the four numbers</small></div>
+      <table class="t">
+        <tr><th>Format</th><th>Parameters</th><th>Used by</th></tr>
+        <tr><td class="hl">Corner (Pascal VOC)</td><td>(x<sub>min</sub>, y<sub>min</sub>, x<sub>max</sub>, y<sub>max</sub>) — top-left and bottom-right in pixels</td><td>Pascal VOC, many annotation tools</td></tr>
+        <tr><td class="hl">Centre (YOLO)</td><td>(x<sub>c</sub>, y<sub>c</sub>, w, h) — centre point plus width and height, usually normalised to [0,1]</td><td>YOLO family</td></tr>
+        <tr><td class="hl">Top-left + size (COCO)</td><td>(x<sub>min</sub>, y<sub>min</sub>, w, h) — top-left corner plus width and height in pixels</td><td>COCO dataset &amp; API</td></tr>
+      </table>
+      <p class="mono" style="margin-top:10px;color:var(--ink2)">Normalising by image width and height makes coordinates resolution-independent — the same label works whether the frame is 640 px or 4K.</p>
+    </div>
+
+    <figure class="fig">
+      <svg viewBox="0 0 920 300" font-family="IBM Plex Mono,monospace" font-size="10.5" fill="#151B13" role="img" aria-label="Bounding box coordinate systems">
+        <!-- grid frame -->
+        <rect x="60" y="40" width="380" height="230" fill="#fff" stroke="#151B13" stroke-width="1.4"/>
+        <g stroke="#4C5548" stroke-width=".4" opacity=".4">
+          <line x1="60" y1="86" x2="440" y2="86"/><line x1="60" y1="132" x2="440" y2="132"/><line x1="60" y1="178" x2="440" y2="178"/><line x1="60" y1="224" x2="440" y2="224"/>
+          <line x1="136" y1="40" x2="136" y2="270"/><line x1="212" y1="40" x2="212" y2="270"/><line x1="288" y1="40" x2="288" y2="270"/><line x1="364" y1="40" x2="364" y2="270"/>
+        </g>
+        <!-- object + box -->
+        <ellipse cx="250" cy="165" rx="70" ry="55" fill="#1E5F8C" opacity=".18" stroke="#151B13"/>
+        <rect x="176" y="106" width="150" height="120" fill="none" stroke="#B3157E" stroke-width="2"/>
+        <circle cx="176" cy="106" r="3.5" fill="#B3157E"/><text x="150" y="100" fill="#B3157E">(x₁,y₁)</text>
+        <circle cx="326" cy="226" r="3.5" fill="#B3157E"/><text x="330" y="242" fill="#B3157E">(x₂,y₂)</text>
+        <circle cx="251" cy="166" r="3.5" fill="#D98200"/><text x="256" y="162" fill="#D98200">(xᶜ,yᶜ)</text>
+        <line x1="176" y1="250" x2="326" y2="250" stroke="#4C5548" marker-end="url(#a2)" marker-start="url(#a2)"/>
+        <text x="240" y="264" text-anchor="middle" font-size="9" fill="#4C5548">w</text>
+        <line x1="352" y1="106" x2="352" y2="226" stroke="#4C5548"/>
+        <text x="362" y="170" font-size="9" fill="#4C5548">h</text>
+        <defs><marker id="a2" markerWidth="8" markerHeight="8" refX="4" refY="3" orient="auto"><path d="M0,0 L6,3 L0,6 Z" fill="#4C5548"/></marker></defs>
+        <text x="60" y="30" font-size="9" fill="#4C5548">origin (0,0) top-left · y grows downward</text>
+
+        <!-- readouts -->
+        <g transform="translate(500,60)">
+          <text y="0" font-weight="600" fill="#151B13">SAME BOX, THREE FORMATS</text>
+          <rect x="0" y="16" width="360" height="52" fill="#F6F7F0" stroke="#151B13" stroke-width="1"/>
+          <text x="12" y="36" fill="#B3157E" font-weight="600">Corner</text><text x="12" y="54">x₁,y₁,x₂,y₂ = 176,106,326,226</text>
+          <rect x="0" y="76" width="360" height="52" fill="#F6F7F0" stroke="#151B13" stroke-width="1"/>
+          <text x="12" y="96" fill="#B3157E" font-weight="600">Centre</text><text x="12" y="114">xᶜ,yᶜ,w,h = 251,166,150,120</text>
+          <rect x="0" y="136" width="360" height="52" fill="#F6F7F0" stroke="#151B13" stroke-width="1"/>
+          <text x="12" y="156" fill="#B3157E" font-weight="600">COCO</text><text x="12" y="174">x,y,w,h = 176,106,150,120</text>
+        </g>
+      </svg>
+      <figcaption><b>FIG 3.2</b> One rectangle, written three ways. Conversion is pure arithmetic: xᶜ = x₁ + w/2, and w = x₂ − x₁.</figcaption>
+    </figure>
+
+    <div class="two">
+      <div class="panel">
+        <div class="panel-t">Ground-truth vs predicted</div>
+        <p>A <b>ground-truth box</b> is the human annotation used for training and evaluation. A <b>predicted box</b> is what the model outputs, carrying a <b>confidence / objectness score</b>. Training pushes predicted boxes towards ground truth; evaluation compares the two using IoU (next leg).</p>
+      </div>
+      <div class="panel">
+        <div class="panel-t">Anchor boxes (priors)</div>
+        <p>Rather than regress a box from nothing, most detectors place <b>anchors</b> — a fixed set of reference boxes at several scales and aspect ratios — at every location on the feature map, then predict small <b>offsets</b> from the nearest anchor. Anchors give the network sensible starting shapes and are central to Faster R-CNN, SSD and early YOLO. Newer <b>anchor-free</b> detectors drop them and predict boxes directly.</p>
+      </div>
+    </div>
+
+    <div class="note"><b>Exam line</b> — Know the offset trick: the network does not output raw pixel coordinates, it outputs deltas (t<sub>x</sub>, t<sub>y</sub>, t<sub>w</sub>, t<sub>h</sub>) relative to an anchor. This makes the regression target small and well-behaved.</div>
+
+    <div class="pg" data-pg="anchors">
+      <div class="pg-bar"><span class="pg-live">Live</span><h4>Anchor Box Lab</h4><small>drag the location · pick a prior</small></div>
+      <div class="pg-body">
+        <div class="pg-stage" data-stage></div>
+        <p class="pg-hint">Anchors are reference boxes the network starts from. Drag the <b>magenta point</b> to move the feature-map location, choose a scale and aspect ratio, and watch which prior best matches the car. The network never outputs raw coordinates &mdash; it predicts the four <b>offset deltas</b> shown below.</p>
+        <div class="pg-ctl">
+          <div class="pg-f"><label>Anchor scale <b data-scaleval>medium</b></label>
+            <input type="range" min="0" max="2" step="1" value="1" data-scale></div>
+          <div class="pg-f"><label>Aspect ratio</label>
+            <span class="pg-seg" data-ar><button class="on">1:1</button><button>1.6:1</button><button>1:1.6</button></span></div>
+          <div class="pg-btns"><button class="pg-btn tog on" data-all>showing all 9</button></div>
+        </div>
+        <div class="pg-reads">
+          <div class="pg-read blue"><i>IoU vs target</i><b data-iou>0.00</b></div>
+          <div class="pg-read mag"><i>&Delta;x</i><b data-dx>0</b></div>
+          <div class="pg-read mag"><i>&Delta;y</i><b data-dy>0</b></div>
+          <div class="pg-read mag"><i>&Delta;w (log)</i><b data-dw>0</b></div>
+          <div class="pg-read mag"><i>&Delta;h (log)</i><b data-dh>0</b></div>
+        </div>
+        <p class="pg-hint" data-best style="margin-top:9px">&nbsp;</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= 03 ================= -->
+  <section class="leg" id="l3">
+    <div class="leg-head"><div class="leg-no">WP 03</div><div>
+      <div class="leg-kicker">Scoring</div><h2>Object Detection Metrics</h2></div></div>
+
+    <p class="lede">A detector is judged on two things together — did it find the object (localisation) and did it name it correctly (classification). The whole scoring stack is built on one geometric primitive: <b>Intersection over Union</b>.</p>
+
+    <div class="panel">
+      <div class="panel-t">IoU — Intersection over Union</div>
+      <p><b>IoU</b> measures how well a predicted box overlaps a ground-truth box. It is the area they share divided by the total area they cover together. IoU = 0 means no overlap; IoU = 1 means a perfect match.</p>
+      <div class="formula">IoU = area(prediction ∩ ground&#8209;truth) / area(prediction ∪ ground&#8209;truth)</div>
+      <p class="mono" style="color:var(--ink2)">A prediction usually counts as correct only if IoU ≥ a threshold (0.5 is the classic Pascal VOC bar) <b>and</b> the predicted class matches.</p>
+    </div>
+
+    <figure class="fig">
+      <svg viewBox="0 0 920 240" font-family="IBM Plex Mono,monospace" font-size="10.5" fill="#151B13" role="img" aria-label="Intersection over union diagram">
+        <defs><pattern id="ih" width="8" height="8" patternTransform="rotate(45)" patternUnits="userSpaceOnUse"><line x1="0" y1="0" x2="0" y2="8" stroke="#B3157E" stroke-width="1.4" opacity=".5"/></pattern></defs>
+        <!-- ground truth -->
+        <rect x="120" y="60" width="180" height="130" fill="#1E5F8C" opacity=".12" stroke="#1E5F8C" stroke-width="2"/>
+        <text x="130" y="52" fill="#1E5F8C" font-weight="600">GROUND TRUTH</text>
+        <!-- prediction -->
+        <rect x="210" y="100" width="180" height="130" fill="none" stroke="#B3157E" stroke-width="2" stroke-dasharray="7 4"/>
+        <text x="300" y="248" fill="#B3157E" font-weight="600" text-anchor="middle">PREDICTION</text>
+        <!-- intersection -->
+        <rect x="210" y="100" width="90" height="90" fill="url(#ih)"/>
+        <text x="255" y="150" text-anchor="middle" fill="#151B13" font-size="9">∩</text>
+
+        <!-- formula visual -->
+        <g transform="translate(500,70)">
+          <rect x="0" y="0" width="50" height="40" fill="url(#ih)" stroke="#151B13"/>
+          <text x="70" y="26" font-size="20">/</text>
+          <rect x="95" y="0" width="50" height="40" fill="#1E5F8C" opacity=".18" stroke="#151B13"/>
+          <rect x="110" y="12" width="35" height="35" fill="#B3157E" opacity=".14" stroke="#151B13" stroke-dasharray="4 3"/>
+          <text x="175" y="26" font-size="20">=</text>
+          <text x="205" y="30" font-size="22" font-weight="700" fill="#B3157E">IoU</text>
+          <text x="0" y="70" font-size="9" fill="#4C5548">overlap</text>
+          <text x="95" y="70" font-size="9" fill="#4C5548">union</text>
+        </g>
+        <g transform="translate(500,150)" font-size="10">
+          <text y="0" fill="#4C5548">IoU ≥ 0.5  → box accepted (Pascal VOC bar)</text>
+          <text y="20" fill="#4C5548">COCO reports mAP averaged over IoU 0.50 … 0.95</text>
+        </g>
+      </svg>
+      <figcaption><b>FIG 3.3</b> IoU is overlap ÷ union. Every downstream metric — precision, recall, AP, mAP — depends on this one ratio and the threshold you set on it.</figcaption>
+    </figure>
+
+    <div class="pg" data-pg="iou">
+      <div class="pg-bar"><span class="pg-live">Live</span><h4>IoU Explorer</h4><small>drag &amp; resize the prediction</small></div>
+      <div class="pg-body">
+        <div class="pg-stage" data-stage></div>
+        <p class="pg-hint">The <b>blue</b> box is the ground truth. Drag the <b>magenta</b> box to move it and pull its bottom-right corner to resize. The hatched region is the intersection; IoU is intersection &divide; union. Set the acceptance threshold and see whether this counts as a true positive.</p>
+        <div class="pg-ctl">
+          <div class="pg-f"><label>IoU threshold <b data-thrval>0.50</b></label>
+            <input type="range" min="5" max="95" step="1" value="50" data-thr></div>
+          <div class="pg-btns"><button class="pg-btn" data-reset>Reset box</button></div>
+          <div style="margin-left:auto"><span class="pg-verdict fp" data-verdict>&mdash;</span></div>
+        </div>
+        <div class="pg-reads">
+          <div class="pg-read mag"><i>IoU</i><b data-iou>0.00</b></div>
+          <div class="pg-read"><i>Intersection</i><b data-int>0</b></div>
+          <div class="pg-read"><i>Union</i><b data-uni>0</b></div>
+        </div>
+      </div>
+    </div>
+
+
+    <div class="panel">
+      <div class="panel-t">From IoU to the count sheet</div>
+      <table class="t">
+        <tr><th>Term</th><th>Meaning</th></tr>
+        <tr><td class="hl">True Positive (TP)</td><td>Correct class and IoU with a ground-truth box ≥ threshold</td></tr>
+        <tr><td class="hl">False Positive (FP)</td><td>A detection that matches no ground-truth box (wrong class, low IoU, or a duplicate)</td></tr>
+        <tr><td class="hl">False Negative (FN)</td><td>A real object the detector missed entirely</td></tr>
+        <tr><td class="hl">(no True Negatives)</td><td>Detection has effectively no TN — the background is not enumerated as boxes</td></tr>
+      </table>
+    </div>
+
+    <div class="two">
+      <div class="panel">
+        <div class="panel-t">Precision &amp; Recall</div>
+        <div class="formula">Precision = TP / (TP + FP)
+Recall&nbsp;&nbsp;&nbsp;&nbsp;= TP / (TP + FN)</div>
+        <p><b>Precision</b> asks: of the boxes I drew, how many were right? <b>Recall</b> asks: of the objects that were there, how many did I find? Raising the confidence threshold trades recall for precision, and vice-versa — which is exactly what a PR curve plots.</p>
+      </div>
+      <div class="panel">
+        <div class="panel-t">AP &amp; mAP</div>
+        <p><b>Average Precision (AP)</b> is the area under the precision–recall curve for one class — a single number summarising the whole precision/recall trade-off. <b>Mean Average Precision (mAP)</b> is the AP averaged over all classes.</p>
+        <ul class="kl">
+          <li><b>Pascal VOC</b> — AP at a single IoU = 0.5 (written mAP@0.5).</li>
+          <li><b>COCO</b> — mAP averaged over IoU 0.50 → 0.95 in steps of 0.05, the stricter modern standard.</li>
+        </ul>
+      </div>
+    </div>
+
+    <figure class="fig">
+      <svg viewBox="0 0 920 260" font-family="IBM Plex Mono,monospace" font-size="10" fill="#151B13" role="img" aria-label="Precision recall curve">
+        <line x1="90" y1="30" x2="90" y2="210" stroke="#151B13" stroke-width="1.4"/>
+        <line x1="90" y1="210" x2="470" y2="210" stroke="#151B13" stroke-width="1.4"/>
+        <text x="40" y="120" fill="#4C5548" transform="rotate(-90 40 120)">Precision</text>
+        <text x="280" y="238" text-anchor="middle" fill="#4C5548">Recall</text>
+        <text x="86" y="26" text-anchor="end" fill="#4C5548">1.0</text><text x="470" y="228" text-anchor="middle" fill="#4C5548">1.0</text>
+        <path d="M90 45 L200 52 L280 70 L340 110 L400 165 L455 208" fill="none" stroke="#B3157E" stroke-width="2.2"/>
+        <path d="M90 45 L200 52 L280 70 L340 110 L400 165 L455 208 L455 210 L90 210 Z" fill="#B3157E" opacity=".1"/>
+        <text x="250" y="130" fill="#B3157E" font-weight="600">AP = area under curve</text>
+        <g transform="translate(540,50)" font-size="11">
+          <text y="0" font-weight="600">READING THE CURVE</text>
+          <text y="28" fill="#4C5548">• High and flat → good detector</text>
+          <text y="50" fill="#4C5548">• Sweep confidence threshold to</text>
+          <text y="66" fill="#4C5548">&nbsp;&nbsp;trace precision against recall</text>
+          <text y="94" fill="#4C5548">• AP = one number per class</text>
+          <text y="116" fill="#4C5548">• mAP = mean of AP over classes</text>
+          <text y="144" fill="#B3157E" font-weight="600">mAP is THE headline detection score</text>
+        </g>
+      </svg>
+      <figcaption><b>FIG 3.4</b> The precision–recall curve. AP is its area; mAP averages that area across every class in the dataset.</figcaption>
+    </figure>
+
+    <div class="pg" data-pg="pr">
+      <div class="pg-bar"><span class="pg-live">Live</span><h4>Precision, Recall &amp; mAP</h4><small>sweep the confidence threshold</small></div>
+      <div class="pg-body">
+        <div class="pg-two">
+          <div>
+            <div class="pg-stage" data-stage></div>
+            <p class="pg-hint"><b>Blue</b> boxes are correct detections (true positives), <b>magenta</b> are spurious (false positives). Raise the confidence threshold to drop weak boxes: false positives vanish first, so precision climbs while recall falls.</p>
+          </div>
+          <div>
+            <div class="pg-stage" data-curve style="background:#fff"></div>
+            <p class="pg-hint">The magenta curve is precision vs recall traced over every threshold; the shaded area is <b>AP</b> for this class. The blue ring marks your current operating point. Averaging AP over all classes gives <b>mAP</b>.</p>
+          </div>
+        </div>
+        <div class="pg-ctl">
+          <div class="pg-f" style="min-width:220px"><label>Confidence threshold <b data-confval>0.50</b></label>
+            <input type="range" min="0" max="100" step="1" value="50" data-conf></div>
+        </div>
+        <div class="pg-reads">
+          <div class="pg-read blue"><i>TP</i><b data-tp>0</b></div>
+          <div class="pg-read mag"><i>FP</i><b data-fp>0</b></div>
+          <div class="pg-read amber"><i>FN</i><b data-fn>0</b></div>
+          <div class="pg-read"><i>Precision</i><b data-prec>0.00</b></div>
+          <div class="pg-read"><i>Recall</i><b data-rec>0.00</b></div>
+          <div class="pg-read mag"><i>AP (this class)</i><b data-ap>0.00</b></div>
+        </div>
+      </div>
+    </div>
+
+
+    <div class="panel">
+      <div class="panel-t">Non-Maximum Suppression (NMS)</div>
+      <p>A detector typically fires several overlapping boxes on the same object. <b>NMS</b> cleans this up: keep the highest-confidence box, discard every other box whose IoU with it exceeds a threshold, and repeat. Without NMS, duplicates inflate false positives and wreck precision.</p>
+      <p class="mono" style="color:var(--ink2)">Speed metric to know: <b>FPS</b> (frames per second) or latency in ms — the axis on which real-time UAV detectors are judged, traded off against mAP.</p>
+    </div>
+
+    <div class="pg" data-pg="nms">
+      <div class="pg-bar"><span class="pg-live">Live</span><h4>NMS Simulator</h4><small>step through the suppression</small></div>
+      <div class="pg-body">
+        <div class="pg-stage" data-stage></div>
+        <p class="pg-hint">The detector fires several overlapping boxes per car (numbers are confidences). NMS keeps the highest-confidence box, then drops every remaining box overlapping it above the IoU threshold. <b>Step</b> once per kept box, or <b>Run</b> to finish. <b>Blue</b> = kept, faded <b>amber</b> = suppressed.</p>
+        <div class="pg-ctl">
+          <div class="pg-f"><label>NMS IoU threshold <b data-thrval>0.50</b></label>
+            <input type="range" min="10" max="90" step="1" value="50" data-iou></div>
+          <div class="pg-f"><label>Confidence cut-off <b data-confval>0.30</b></label>
+            <input type="range" min="0" max="90" step="1" value="30" data-conf></div>
+          <div class="pg-btns">
+            <button class="pg-btn" data-step>Step</button>
+            <button class="pg-btn pri" data-run>Run NMS</button>
+            <button class="pg-btn" data-reset>Reset</button>
+          </div>
+        </div>
+        <div class="pg-reads">
+          <div class="pg-read"><i>Boxes in</i><b data-raw>0</b></div>
+          <div class="pg-read blue"><i>Kept</i><b data-kept>0</b></div>
+          <div class="pg-read amber"><i>Suppressed</i><b data-supp>0</b></div>
+        </div>
+      </div>
+    </div>
+
+
+    <div class="note"><b>Exam line</b> — mAP is not accuracy in the classification sense. It is the mean, over classes, of the area under each class's precision–recall curve, at a stated IoU threshold. Always quote the threshold: mAP@0.5 and mAP@[.5:.95] are different numbers.</div>
+  </section>
+
+  <!-- ================= 04 ================= -->
+  <section class="leg" id="l4">
+    <div class="leg-head"><div class="leg-no">WP 04</div><div>
+      <div class="leg-kicker">Taxonomy</div><h2>Object Detection Architectures</h2></div></div>
+
+    <p class="lede">Every modern detector splits into the same three parts, and falls into one of two families. Learn this map first — the individual architectures on the following legs are just points on it.</p>
+
+    <div class="panel">
+      <div class="panel-t">Backbone → Neck → Head</div>
+      <ul class="kl">
+        <li><b>Backbone</b> — a CNN (VGG, ResNet, CSPDarknet, EfficientNet) pretrained on classification that extracts a feature map from the image.</li>
+        <li><b>Neck</b> — feature aggregation across scales, typically a <abbr title="Feature Pyramid Network — fuses coarse and fine feature maps so small and large objects are both detectable">FPN</abbr>, so both small and large objects are represented well.</li>
+        <li><b>Head</b> — the prediction layers that output class scores and box offsets. Two-stage detectors have a proposal head plus a refinement head; one-stage detectors have a single dense head.</li>
+      </ul>
+    </div>
+
+    <figure class="fig">
+      <svg viewBox="0 0 920 320" font-family="IBM Plex Mono,monospace" font-size="10" fill="#151B13" role="img" aria-label="Two-stage versus one-stage detection pipelines">
+        <defs><marker id="ar" markerWidth="10" markerHeight="10" refX="7" refY="3" orient="auto"><path d="M0,0 L7,3 L0,6 Z" fill="#151B13"/></marker></defs>
+        <!-- two stage -->
+        <text x="20" y="30" font-weight="600" fill="#B3157E" letter-spacing="1.4">TWO-STAGE — propose, then classify (R-CNN family)</text>
+        <g stroke="#151B13" fill="#fff" stroke-width="1.4">
+          <rect x="20"  y="46" width="110" height="50"/><rect x="180" y="46" width="120" height="50"/>
+          <rect x="350" y="46" width="130" height="50"/><rect x="530" y="46" width="130" height="50"/>
+          <rect x="710" y="46" width="150" height="50"/>
+        </g>
+        <g text-anchor="middle" font-size="9.5">
+          <text x="75"  y="76">Image</text><text x="240" y="70">Backbone</text><text x="240" y="84" font-size="8" fill="#4C5548">feature map</text>
+          <text x="415" y="70">Region</text><text x="415" y="84" font-size="8" fill="#4C5548">proposals</text>
+          <text x="595" y="70">RoI features</text>
+          <text x="785" y="70">Classify + </text><text x="785" y="84" font-size="8" fill="#4C5548">refine box</text>
+        </g>
+        <g stroke="#151B13" stroke-width="1.4" marker-end="url(#ar)" fill="none">
+          <line x1="130" y1="71" x2="176" y2="71"/><line x1="300" y1="71" x2="346" y2="71"/>
+          <line x1="480" y1="71" x2="526" y2="71"/><line x1="660" y1="71" x2="706" y2="71"/>
+        </g>
+        <text x="440" y="118" text-anchor="middle" font-size="9" fill="#B3157E">✓ high accuracy&nbsp;&nbsp;✗ slower — two passes</text>
+
+        <line x1="20" y1="150" x2="860" y2="150" stroke="#4C5548" stroke-dasharray="4 4" opacity=".5"/>
+
+        <!-- one stage -->
+        <text x="20" y="188" font-weight="600" fill="#1E5F8C" letter-spacing="1.4">ONE-STAGE — predict boxes directly (YOLO, SSD, RetinaNet)</text>
+        <g stroke="#151B13" fill="#fff" stroke-width="1.4">
+          <rect x="20"  y="204" width="110" height="50"/><rect x="220" y="204" width="150" height="50"/>
+          <rect x="470" y="204" width="180" height="50"/><rect x="740" y="204" width="120" height="50"/>
+        </g>
+        <g text-anchor="middle" font-size="9.5">
+          <text x="75"  y="234">Image</text><text x="295" y="228">Backbone</text><text x="295" y="242" font-size="8" fill="#4C5548">+ neck</text>
+          <text x="560" y="228">Dense prediction head</text><text x="560" y="242" font-size="8" fill="#4C5548">class + box at every cell</text>
+          <text x="800" y="234">NMS</text>
+        </g>
+        <g stroke="#151B13" stroke-width="1.4" marker-end="url(#ar)" fill="none">
+          <line x1="130" y1="229" x2="216" y2="229"/><line x1="370" y1="229" x2="466" y2="229"/><line x1="650" y1="229" x2="736" y2="229"/>
+        </g>
+        <text x="440" y="286" text-anchor="middle" font-size="9" fill="#1E5F8C">✓ real-time, single pass&nbsp;&nbsp;✗ historically weaker on small / dense objects</text>
+      </svg>
+      <figcaption><b>FIG 3.5</b> The two families. Two-stage detectors propose regions then classify them; one-stage detectors collapse both jobs into a single forward pass.</figcaption>
+    </figure>
+
+    <div class="two">
+      <div class="panel">
+        <div class="panel-t">Two-stage · accuracy</div>
+        <p>Stage 1 proposes a manageable set of candidate regions likely to contain objects; stage 2 classifies and refines each. More computation, higher mAP, especially on small and overlapping objects. The <b>R-CNN → Fast → Faster</b> line is the canonical example.</p>
+      </div>
+      <div class="panel">
+        <div class="panel-t">One-stage · speed</div>
+        <p>Skip proposals entirely and predict class-plus-box densely across the image in one pass. Far faster — the basis of real-time detection. <b>YOLO</b>, SSD and RetinaNet live here; RetinaNet's focal loss closed much of the old accuracy gap.</p>
+      </div>
+    </div>
+
+    <div class="note"><b>Exam line</b> — The one-line distinction: two-stage = <em>region proposal then classification</em> (accurate, slower); one-stage = <em>direct dense prediction in a single pass</em> (fast, real-time). Everything else is detail.</div>
+  </section>
+
+  <!-- ================= 05 ================= -->
+  <section class="leg" id="l5">
+    <div class="leg-head"><div class="leg-no">WP 05</div><div>
+      <div class="leg-kicker">Two-stage · origin</div><h2>R-CNN</h2></div></div>
+
+    <p class="lede"><b>R-CNN</b> (Regions with CNN features, Girshick et&nbsp;al., 2014) was the model that brought deep CNNs to detection. Its idea is simple: propose regions, then run a CNN on each one. It works, but it is slow — and the two legs that follow are the story of fixing that slowness.</p>
+
+    <div class="panel">
+      <div class="panel-t">The R-CNN pipeline</div>
+      <ul class="kl">
+        <li><b>1 · Region proposals</b> — <abbr title="A classic region-proposal algorithm that merges superpixels by colour/texture similarity to suggest candidate object regions">Selective Search</abbr> generates ~2000 candidate regions per image.</li>
+        <li><b>2 · Warp</b> — each region is cropped and warped to a fixed 227×227 size.</li>
+        <li><b>3 · CNN features</b> — a CNN (AlexNet) is run on every warped region to extract a feature vector.</li>
+        <li><b>4 · Classify</b> — a set of class-specific linear <abbr title="Support Vector Machine — a classical supervised classifier used per-class in R-CNN">SVMs</abbr> score each region.</li>
+        <li><b>5 · Refine</b> — a separate bounding-box regressor tightens the box; NMS removes duplicates.</li>
+      </ul>
+    </div>
+
+    <div class="two">
+      <div class="panel">
+        <div class="panel-t">Why it was a breakthrough</div>
+        <p>It roughly doubled the best detection mAP of its day by replacing hand-crafted features with learned CNN features. It proved that transfer learning — pretrain on ImageNet classification, fine-tune for detection — was the way forward.</p>
+      </div>
+      <div class="panel">
+        <div class="panel-t">Why it was painfully slow</div>
+        <ul class="kl">
+          <li><b>2000 CNN passes</b> — the CNN runs once per region, with no sharing, so a single image takes tens of seconds.</li>
+          <li><b>Multi-stage training</b> — CNN, SVMs and regressor are trained separately, not end-to-end.</li>
+          <li><b>Disk-heavy</b> — extracted features are cached to disk, needing hundreds of gigabytes.</li>
+          <li><b>Fixed proposals</b> — Selective Search is a separate, non-learned, slow pre-step.</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="note"><b>Exam line</b> — R-CNN's fatal flaw is redundant computation: the CNN is evaluated ~2000 times per image because each proposal is processed independently. Fast R-CNN fixes exactly this.</div>
+  </section>
+
+  <!-- ================= 06 ================= -->
+  <section class="leg" id="l6">
+    <div class="leg-head"><div class="leg-no">WP 06</div><div>
+      <div class="leg-kicker">Two-stage · sharing</div><h2>Fast R-CNN</h2></div></div>
+
+    <p class="lede"><b>Fast R-CNN</b> (Girshick, 2015) makes one decisive change: run the CNN <em>once</em> over the whole image, then reuse that shared feature map for every proposal. The result is roughly an order-of-magnitude speed-up and a single, jointly-trained network.</p>
+
+    <div class="panel">
+      <div class="panel-t">What changed from R-CNN</div>
+      <ul class="kl">
+        <li><b>One CNN pass</b> — the whole image goes through the backbone once, producing a single feature map.</li>
+        <li><b>RoI pooling</b> — each proposal is projected onto that feature map and pooled to a fixed size, so any-sized region becomes a fixed-length feature — no per-region CNN.</li>
+        <li><b>Single network, two heads</b> — a softmax classifier and a bounding-box regressor share the backbone.</li>
+        <li><b>Multi-task loss</b> — classification loss and localisation (smooth-L1) loss are trained together in one step.</li>
+        <li><b>No disk cache</b> — features are computed on the fly, training is end-to-end from features to output.</li>
+      </ul>
+    </div>
+
+    <figure class="fig">
+      <svg viewBox="0 0 920 250" font-family="IBM Plex Mono,monospace" font-size="10" fill="#151B13" role="img" aria-label="Fast R-CNN pipeline with shared feature map and RoI pooling">
+        <defs><marker id="ar2" markerWidth="10" markerHeight="10" refX="7" refY="3" orient="auto"><path d="M0,0 L7,3 L0,6 Z" fill="#151B13"/></marker></defs>
+        <g stroke="#151B13" fill="#fff" stroke-width="1.4">
+          <rect x="20" y="90" width="90" height="60"/>
+          <rect x="170" y="80" width="130" height="80"/>
+          <rect x="380" y="90" width="120" height="60"/>
+          <rect x="580" y="40" width="150" height="50"/>
+          <rect x="580" y="150" width="150" height="50"/>
+        </g>
+        <g text-anchor="middle" font-size="9.5">
+          <text x="65" y="124">Image</text>
+          <text x="235" y="116">Backbone CNN</text><text x="235" y="130" font-size="8" fill="#4C5548">shared feature map</text>
+          <text x="440" y="116">RoI pooling</text><text x="440" y="130" font-size="8" fill="#4C5548">fixed-size features</text>
+          <text x="655" y="60">Softmax</text><text x="655" y="74" font-size="8" fill="#4C5548">class</text>
+          <text x="655" y="170">Bbox regressor</text><text x="655" y="184" font-size="8" fill="#4C5548">refine box</text>
+        </g>
+        <g stroke="#151B13" stroke-width="1.4" marker-end="url(#ar2)" fill="none">
+          <line x1="110" y1="120" x2="166" y2="120"/><line x1="300" y1="120" x2="376" y2="120"/>
+          <line x1="500" y1="110" x2="576" y2="70"/><line x1="500" y1="130" x2="576" y2="170"/>
+        </g>
+        <!-- proposals arrow in -->
+        <path d="M235 40 L235 78" stroke="#B3157E" stroke-width="1.4" marker-end="url(#ar2)"/>
+        <text x="235" y="32" text-anchor="middle" fill="#B3157E" font-size="9">Selective Search proposals (still external)</text>
+        <path d="M655 210 L655 232" stroke="#4C5548" stroke-width="1"/>
+        <text x="440" y="240" text-anchor="middle" fill="#4C5548" font-size="9">one shared backbone + multi-task loss → end-to-end after proposals</text>
+      </svg>
+      <figcaption><b>FIG 3.6</b> Fast R-CNN. The backbone runs once; RoI pooling turns each proposal into a fixed-size feature that both heads share.</figcaption>
+    </figure>
+
+    <div class="note"><b>Exam line</b> — Fast R-CNN's remaining bottleneck is still <b>Selective Search</b>: proposals come from a separate, hand-designed, CPU-bound algorithm that now dominates the runtime. Faster R-CNN removes it.</div>
+  </section>
+
+  <!-- ================= 07 ================= -->
+  <section class="leg" id="l7">
+    <div class="leg-head"><div class="leg-no">WP 07</div><div>
+      <div class="leg-kicker">Two-stage · end-to-end</div><h2>Faster R-CNN</h2></div></div>
+
+    <p class="lede"><b>Faster R-CNN</b> (Ren et&nbsp;al., 2015) removes the last hand-crafted step by learning the proposals too. A small <b>Region Proposal Network (RPN)</b> shares the backbone's features and generates proposals almost for free — making the whole detector a single, end-to-end trainable network.</p>
+
+    <div class="panel">
+      <div class="panel-t">The Region Proposal Network (RPN)</div>
+      <ul class="kl">
+        <li><b>Shared features</b> — the RPN slides over the same feature map the detection head uses; no separate image pass.</li>
+        <li><b>Anchors</b> — at each location it places k anchor boxes (typically 3 scales × 3 aspect ratios = 9) as reference shapes.</li>
+        <li><b>Two tiny heads</b> — for each anchor it predicts an <em>objectness</em> score (object vs background) and four box-offset deltas.</li>
+        <li><b>Top proposals</b> — the highest-scoring anchors, after NMS, become the region proposals fed to the Fast R-CNN detection head.</li>
+        <li><b>End-to-end</b> — RPN and detector are trained jointly with shared convolutions.</li>
+      </ul>
+    </div>
+
+    <div class="panel">
+      <div class="panel-t">The three-generation evolution <small>the exam's favourite table</small></div>
+      <table class="t">
+        <tr><th>Model</th><th>Proposals</th><th>CNN passes / image</th><th>Training</th><th>Approx. test speed</th></tr>
+        <tr><td class="hl">R-CNN</td><td>Selective Search (external)</td><td>~2000 (one per region)</td><td>Multi-stage, separate</td><td>~47 s</td></tr>
+        <tr><td class="hl">Fast R-CNN</td><td>Selective Search (external)</td><td>1 shared + RoI pooling</td><td>Single-stage, multi-task loss</td><td>~2 s</td></tr>
+        <tr><td class="hl">Faster R-CNN</td><td>Learned RPN (internal)</td><td>1 shared for RPN + head</td><td>End-to-end</td><td>~0.2 s (≈5 fps)</td></tr>
+      </table>
+      <p class="mono" style="margin-top:10px;color:var(--ink2)">Speeds are the illustrative figures from the original papers — treat them as orders of magnitude. Faster R-CNN is also the foundation of <b>Mask R-CNN</b>, which adds a pixel-mask branch for instance segmentation.</p>
+    </div>
+
+    <div class="pg" data-pg="evolution">
+      <div class="pg-bar"><span class="pg-live">Live</span><h4>R-CNN &rarr; Fast &rarr; Faster</h4><small>watch each bottleneck fall</small></div>
+      <div class="pg-body">
+        <div class="pg-stage" data-stage></div>
+        <p class="pg-hint">Switch generation to see how proposals are made and how much compute each image costs. R-CNN scatters ~2000 proposals and re-runs the CNN on every one; Fast R-CNN shares one feature map; Faster R-CNN learns the proposals with an RPN and runs end-to-end.</p>
+        <div class="pg-ctl">
+          <div class="pg-f"><label>Generation</label>
+            <span class="pg-seg" data-gen>
+              <button class="on" data-g="rcnn">R-CNN</button>
+              <button data-g="fast">Fast</button>
+              <button data-g="faster">Faster</button></span></div>
+          <div class="pg-f" style="flex:1;min-width:180px"><label>Relative speed</label>
+            <div style="height:8px;background:var(--rule-2);border:1px solid var(--rule-2)"><div data-fpsbar style="height:100%;width:3%;background:var(--blue);transition:width .3s"></div></div></div>
+        </div>
+        <div class="pg-reads">
+          <div class="pg-read"><i>CNN passes / image</i><b data-passes>&mdash;</b></div>
+          <div class="pg-read amber"><i>Approx. test time</i><b data-time>&mdash;</b></div>
+          <div class="pg-read blue"><i>Throughput</i><b data-fps>&mdash;</b></div>
+        </div>
+        <div class="pg-code" style="border-left-color:var(--magenta)"><span class="c">proposals :</span> <span data-prop></span>
+<span class="c">training  :</span> <span data-train></span>
+<span class="c">bottleneck:</span> <span data-bottleneck style="color:#B3157E"></span></div>
+      </div>
+    </div>
+
+
+    <div class="note"><b>Exam line</b> — What made it "faster" is the <b>RPN</b>: proposals are now generated by a network sharing convolutional features with the detector, replacing Selective Search and enabling true end-to-end training.</div>
+  </section>
+
+  <!-- ================= 08 ================= -->
+  <section class="leg" id="l8">
+    <div class="leg-head"><div class="leg-no">WP 08</div><div>
+      <div class="leg-kicker">One-stage · real-time</div><h2>YOLO</h2></div></div>
+
+    <p class="lede"><b>YOLO</b> — "You Only Look Once" (Redmon et&nbsp;al., 2016) — reframes detection as a single regression problem solved in one forward pass. No proposals, no second stage: the whole image goes through the network once and boxes come straight out. This is what makes real-time UAV detection possible.</p>
+
+    <div class="panel">
+      <div class="panel-t">How YOLO sees an image</div>
+      <ul class="kl">
+        <li><b>Grid</b> — the image is divided into an S×S grid of cells.</li>
+        <li><b>Per-cell prediction</b> — each cell predicts B bounding boxes, each with a confidence (objectness) score, plus class probabilities for the cell.</li>
+        <li><b>One tensor out</b> — the whole output is a single tensor produced in one pass; the network is trained end-to-end on a combined localisation + confidence + classification loss.</li>
+        <li><b>NMS</b> — overlapping boxes are suppressed to leave one box per object.</li>
+        <li><b>Global reasoning</b> — because it sees the whole image at once, YOLO makes fewer background false positives than region-based methods.</li>
+      </ul>
+    </div>
+
+    <figure class="fig">
+      <svg viewBox="0 0 920 260" font-family="IBM Plex Mono,monospace" font-size="10" fill="#151B13" role="img" aria-label="YOLO grid over an image with predicted boxes">
+        <!-- image + grid -->
+        <rect x="40" y="30" width="300" height="200" fill="#fff" stroke="#151B13" stroke-width="1.4"/>
+        <g stroke="#4C5548" stroke-width=".6" opacity=".5">
+          <line x1="100" y1="30" x2="100" y2="230"/><line x1="160" y1="30" x2="160" y2="230"/><line x1="220" y1="30" x2="220" y2="230"/><line x1="280" y1="30" x2="280" y2="230"/>
+          <line x1="40" y1="70" x2="340" y2="70"/><line x1="40" y1="110" x2="340" y2="110"/><line x1="40" y1="150" x2="340" y2="150"/><line x1="40" y1="190" x2="340" y2="190"/>
+        </g>
+        <ellipse cx="150" cy="150" rx="55" ry="42" fill="#1E5F8C" opacity=".18" stroke="#151B13"/>
+        <rect x="96" y="110" width="108" height="82" fill="none" stroke="#B3157E" stroke-width="2"/>
+        <circle cx="150" cy="150" r="3" fill="#B3157E"/>
+        <rect x="248" y="60" width="52" height="42" fill="#D98200" opacity=".2" stroke="#151B13"/>
+        <rect x="244" y="56" width="60" height="50" fill="none" stroke="#B3157E" stroke-width="2"/>
+        <text x="190" y="24" text-anchor="middle" fill="#4C5548" font-size="9">S × S grid — each cell predicts B boxes + confidences + classes</text>
+
+        <!-- output tensor -->
+        <g transform="translate(430,40)">
+          <text y="0" font-weight="600">ONE FORWARD PASS →</text>
+          <rect x="0" y="14" width="440" height="46" fill="#F6F7F0" stroke="#151B13"/>
+          <text x="12" y="34" font-size="9.5" fill="#B3157E" font-weight="600">Output tensor</text>
+          <text x="12" y="50" font-size="9.5">S × S × (B·5 + C)</text>
+          <text x="0" y="92" font-size="9.5" fill="#4C5548">5 = x, y, w, h, confidence &nbsp;·&nbsp; C = class scores</text>
+          <text x="0" y="128" font-weight="600" fill="#1E5F8C">✓ real-time (tens–hundreds of FPS)</text>
+          <text x="0" y="150" font-weight="600" fill="#1E5F8C">✓ global context → few background FPs</text>
+          <text x="0" y="176" font-weight="600" fill="#B3157E">✗ early versions weak on small /</text>
+          <text x="0" y="192" font-weight="600" fill="#B3157E">&nbsp;&nbsp;clustered objects — a UAV pain point</text>
+        </g>
+      </svg>
+      <figcaption><b>FIG 3.7</b> YOLO grids the image and predicts every box in a single pass, emitting one S×S×(B·5+C) tensor. Speed is the whole point.</figcaption>
+    </figure>
+
+    <div class="pg" data-pg="yolo">
+      <div class="pg-bar"><span class="pg-live">Live</span><h4>YOLO Grid Playground</h4><small>size the grid, read the tensor</small></div>
+      <div class="pg-body">
+        <div class="pg-two">
+          <div>
+            <div class="pg-stage" data-stage></div>
+          </div>
+          <div>
+            <p class="pg-hint">YOLO splits the frame into an <b>S&times;S</b> grid; the cell containing an object's centre is responsible for predicting it. Shrink the grid and two objects can fall in one cell (<b>amber</b>) &mdash; exactly why early YOLO struggled with the small, clustered targets a UAV sees from altitude.</p>
+            <div class="pg-ctl" style="flex-direction:column;align-items:stretch">
+              <div class="pg-f" style="min-width:auto"><label>Grid S <b data-sval>7&times;7</b></label>
+                <input type="range" min="3" max="13" step="1" value="7" data-s></div>
+              <div class="pg-f" style="min-width:auto"><label>Boxes per cell B <b data-bval>2</b></label>
+                <input type="range" min="1" max="5" step="1" value="2" data-b></div>
+              <div class="pg-f" style="min-width:auto"><label>Classes C <b data-cval>3</b></label>
+                <input type="range" min="1" max="20" step="1" value="3" data-c></div>
+            </div>
+            <div class="pg-code" style="border-left-color:var(--blue)"><span class="c"># output tensor</span>
+<span class="k">shape</span> = <span class="v" data-tensor></span>
+<span class="k">total</span> = <span class="v" data-nums></span></div>
+            <div class="pg-note" data-clashwarn style="display:none"><b>collision</b> &mdash; <span data-clash>0</span> object(s) share a cell with another; a v1-style single-box cell can only report one, so the rest are missed. Increasing S separates them.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+
+    <div class="two">
+      <div class="panel">
+        <div class="panel-t">Strengths</div>
+        <ul class="kl">
+          <li><b>Speed</b> — one pass, no proposal stage; runs in real time even on modest hardware.</li>
+          <li><b>Global view</b> — reasons over the whole image, so it confuses background for objects less often.</li>
+          <li><b>Simple &amp; deployable</b> — a single network, easy to export to edge devices.</li>
+        </ul>
+      </div>
+      <div class="panel">
+        <div class="panel-t">Weaknesses &amp; evolution</div>
+        <p>YOLOv1 struggled with small objects, objects in groups, and unusual aspect ratios — precisely the small, dense targets a UAV sees from altitude. Successive versions (v2/v3 added anchors and multi-scale FPN-style prediction; v4, v5 and later added stronger backbones and training tricks) steadily closed the accuracy gap while keeping the single-shot speed.</p>
+      </div>
+    </div>
+
+    <div class="note"><b>Exam line</b> — YOLO's core reframing: detection as a <em>single regression</em> from image pixels straight to box coordinates and class probabilities, evaluated in one pass. That single-pass design is what buys real time.</div>
+  </section>
+
+  <!-- ================= 09 ================= -->
+  <section class="leg" id="l9">
+    <div class="leg-head"><div class="leg-no">WP 09</div><div>
+      <div class="leg-kicker">Toolkit</div><h2>Detectron2</h2></div></div>
+
+    <p class="lede"><b>Detectron2</b> is not a single architecture — it is Facebook AI Research's open-source detection <em>library</em>, built on PyTorch. It packages state-of-the-art detectors (Faster R-CNN, Mask R-CNN, RetinaNet and more) behind a common config and a pretrained model zoo, so you build detectors from parts instead of from scratch.</p>
+
+    <div class="panel">
+      <div class="panel-t">What Detectron2 gives you</div>
+      <ul class="kl">
+        <li><b>PyTorch-native</b> — a ground-up rewrite of the original Caffe2 Detectron, easier to read, extend and debug.</li>
+        <li><b>Model zoo</b> — pretrained weights and reference configs for many detection and segmentation models.</li>
+        <li><b>Modular design</b> — swap backbones, necks, heads, RoI logic and losses by editing a config, not the code.</li>
+        <li><b>Beyond boxes</b> — supports instance segmentation, panoptic segmentation, keypoint / pose and rotated boxes.</li>
+        <li><b>Training &amp; eval infra</b> — data loaders, augmentation, distributed training, and COCO-style mAP evaluation built in.</li>
+      </ul>
+    </div>
+
+    <div class="two">
+      <div class="panel">
+        <div class="panel-t">Where it sits</div>
+        <p>Detectron2 is the research-and-production home of the <b>two-stage / R-CNN family</b> (its flagship is Mask R-CNN). It is heavier than a single-file YOLO repo, and typically used for <em>offline</em> or ground-station processing where accuracy and flexibility matter more than onboard latency.</p>
+      </div>
+      <div class="panel">
+        <div class="panel-t">Library vs architecture</div>
+        <p>A common exam trap: Detectron2 is a <b>framework</b>, YOLO/Faster R-CNN are <b>architectures</b>. You can implement Faster R-CNN <em>inside</em> Detectron2; you cannot compare "Detectron2 vs Faster R-CNN" as if they were the same kind of thing. Ultralytics plays the analogous framework role for the YOLO line.</p>
+      </div>
+    </div>
+
+    <div class="note"><b>Exam line</b> — Detectron2 = FAIR's modular PyTorch detection/segmentation library with a model zoo. Name at least one algorithm it ships (Mask R-CNN) and one capability beyond boxes (instance or panoptic segmentation).</div>
+
+    <div class="pg" data-pg="detectron">
+      <div class="pg-bar"><span class="pg-live">Live</span><h4>Detectron2 Config Builder</h4><small>assemble, don&rsquo;t code</small></div>
+      <div class="pg-body">
+        <p class="pg-hint">Detectron2 is a <b>framework</b>, not an architecture: you pick parts and it wires them up. Choose a meta-architecture, a backbone and a task &mdash; note that the <b>family</b> (one- vs two-stage) is decided by the architecture you drop in, not by Detectron2.</p>
+        <div class="pg-ctl" style="flex-direction:column;align-items:stretch;gap:12px">
+          <div class="pg-f" style="min-width:auto"><label>Meta-architecture</label>
+            <span class="pg-seg" data-meta>
+              <button class="on" data-m="faster_rcnn">Faster R-CNN</button>
+              <button data-m="mask_rcnn">Mask R-CNN</button>
+              <button data-m="retinanet">RetinaNet</button></span></div>
+          <div class="pg-f" style="min-width:auto"><label>Backbone</label>
+            <span class="pg-seg" data-back>
+              <button class="on" data-bk="R_50_FPN">R50-FPN</button>
+              <button data-bk="R_101_FPN">R101-FPN</button>
+              <button data-bk="X_101_FPN">X101-FPN</button></span></div>
+          <div class="pg-f" style="min-width:auto"><label>Task <small style="text-transform:none;letter-spacing:0">(greyed = unavailable for this arch)</small></label>
+            <span class="pg-seg" data-task>
+              <button class="on" data-t="bbox">Detection</button>
+              <button data-t="segm">Instance seg</button>
+              <button data-t="panoptic">Panoptic</button>
+              <button data-t="keypoint">Keypoint</button></span></div>
+        </div>
+        <div class="pg-code" data-cfg></div>
+        <div class="pg-note" data-place></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= 10 ================= -->
+  <section class="leg" id="l10">
+    <div class="leg-head"><div class="leg-no">WP 10</div><div>
+      <div class="leg-kicker">Decision</div><h2>Choosing a Detector for a UAV</h2></div></div>
+
+    <p class="lede">The whole unit collapses into one engineering decision: for <em>this</em> mission, on <em>this</em> hardware, which detector wins? The answer is the speed–accuracy trade, filtered through where the computation happens.</p>
+
+    <div class="panel">
+      <div class="panel-t">One-stage vs two-stage, side by side</div>
+      <table class="t">
+        <tr><th>Axis</th><th>Two-stage (Faster R-CNN / Detectron2)</th><th>One-stage (YOLO)</th></tr>
+        <tr><td class="hl">Pipeline</td><td>Propose regions, then classify &amp; refine</td><td>Direct dense prediction, single pass</td></tr>
+        <tr><td class="hl">Speed</td><td>Lower FPS — heavier</td><td>Real-time, high FPS</td></tr>
+        <tr><td class="hl">Accuracy</td><td>Typically higher, esp. small / dense objects</td><td>Very competitive in modern versions</td></tr>
+        <tr><td class="hl">Where it runs</td><td>Ground station / offline processing</td><td>Onboard / edge, live</td></tr>
+        <tr><td class="hl">UAV use</td><td>Post-flight survey, precise mapping, inspection reports</td><td>Live tracking, obstacle spotting, follow-me, search</td></tr>
+      </table>
+    </div>
+
+    <div class="two">
+      <div class="panel">
+        <div class="panel-t">Fly it onboard (real-time)</div>
+        <ul class="kl">
+          <li><b>Constraint</b> — Jetson / edge TPU, a power budget, and a latency deadline.</li>
+          <li><b>Pick</b> — a compact YOLO variant; quantise and prune to fit.</li>
+          <li><b>Missions</b> — collision avoidance, target following, live search-and-rescue.</li>
+        </ul>
+      </div>
+      <div class="panel">
+        <div class="panel-t">Process on the ground (accuracy)</div>
+        <ul class="kl">
+          <li><b>Constraint</b> — none that matters; a workstation GPU and no deadline.</li>
+          <li><b>Pick</b> — Faster R-CNN / Mask R-CNN via Detectron2 for maximum mAP.</li>
+          <li><b>Missions</b> — crop counting, defect mapping, volumetrics, census from recorded imagery.</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="note"><b>Exam line</b> — Frame the answer as a trade: onboard &amp; real-time → one-stage (YOLO); offline &amp; accuracy-critical → two-stage (Faster R-CNN in Detectron2). Small-object recall from altitude is the deciding UAV-specific factor.</div>
+
+    <div class="pg" data-pg="chooser">
+      <div class="pg-bar"><span class="pg-live">Live</span><h4>Mission &rarr; Detector</h4><small>make the trade</small></div>
+      <div class="pg-body">
+        <p class="pg-hint">Answer three questions about the mission and see which family wins &mdash; the whole unit collapses into this speed-vs-accuracy trade, filtered by where the computation runs.</p>
+        <div class="pg-ctl" style="flex-direction:column;align-items:stretch;gap:12px">
+          <div class="pg-f" style="min-width:auto"><label>Where does detection run?</label>
+            <span class="pg-seg" data-where>
+              <button class="on" data-val="onboard">Onboard the UAV</button>
+              <button data-val="ground">Ground station</button></span></div>
+          <div class="pg-f" style="min-width:auto"><label>What matters most?</label>
+            <span class="pg-seg" data-need>
+              <button class="on" data-val="speed">Real-time speed</button>
+              <button data-val="accuracy">Maximum accuracy</button></span></div>
+          <div class="pg-f" style="min-width:auto"><label>Target size from altitude</label>
+            <span class="pg-seg" data-size>
+              <button class="on" data-val="small">Small / dense</button>
+              <button data-val="large">Large / sparse</button></span></div>
+        </div>
+        <div class="pg-reads" style="grid-template-columns:1fr">
+          <div class="pg-read"><i>Recommended family</i><b style="font-size:16px"><span class="pg-verdict tp" data-fam>&mdash;</span></b></div>
+        </div>
+        <div class="pg-code" style="border-left-color:var(--magenta)"><span class="k">pick</span> : <span class="v" data-pick></span>
+<span class="c" data-why></span></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= 11 ================= -->
+  <section class="leg" id="l11">
+    <div class="leg-head"><div class="leg-no">WP 11</div><div>
+      <div class="leg-kicker">Approach &amp; landing</div><h2>Rapid Revision &amp; Self-Check</h2></div></div>
+
+    <div class="panel">
+      <div class="panel-t">One-line recall</div>
+      <ul class="kl">
+        <li><b>Detection = </b>classification + localisation for every object → a set of class-labelled boxes with confidences.</li>
+        <li><b>Box formats = </b>corner (x₁,y₁,x₂,y₂), centre (xᶜ,yᶜ,w,h), COCO (x,y,w,h); anchors give reference shapes, network predicts offsets.</li>
+        <li><b>IoU = </b>overlap ÷ union; a box is a TP if IoU ≥ threshold and the class matches.</li>
+        <li><b>Precision = </b>TP/(TP+FP); <b>Recall = </b>TP/(TP+FN); <b>AP = </b>area under the PR curve; <b>mAP = </b>mean AP over classes.</li>
+        <li><b>NMS = </b>keep the top box, drop overlaps above an IoU threshold; removes duplicates.</li>
+        <li><b>Architecture = </b>backbone → neck (FPN) → head; two families: two-stage (accurate) vs one-stage (fast).</li>
+        <li><b>R-CNN = </b>Selective Search + CNN per region + SVM; slow (~2000 CNN passes).</li>
+        <li><b>Fast R-CNN = </b>one shared CNN pass + RoI pooling + multi-task loss; proposals still external.</li>
+        <li><b>Faster R-CNN = </b>adds the RPN with anchors; proposals learned; end-to-end; basis of Mask R-CNN.</li>
+        <li><b>YOLO = </b>single-pass regression over an S×S grid → S×S×(B·5+C) tensor; real-time.</li>
+        <li><b>Detectron2 = </b>FAIR's modular PyTorch detection/segmentation library + model zoo (a framework, not an architecture).</li>
+      </ul>
+    </div>
+
+    <div class="panel">
+      <div class="panel-t">Self-check — tap a question to reveal the answer</div>
+      <details class="q"><summary>Which is NOT part of the detection output for one object?</summary>
+        <div class="ans"><b>A pixel-perfect mask.</b> Detection outputs a class label, a bounding box and a confidence score. A per-pixel mask is <em>instance segmentation</em> (e.g. Mask R-CNN), a rung above plain detection.</div></details>
+      <details class="q"><summary>Define IoU and state the classic acceptance threshold.</summary>
+        <div class="ans">IoU = area(intersection) / area(union) of the predicted and ground-truth boxes. The classic Pascal VOC threshold for accepting a detection is <b>IoU ≥ 0.5</b>; COCO averages mAP over IoU 0.50–0.95.</div></details>
+      <details class="q"><summary>What does mAP measure, and why must you quote the IoU threshold?</summary>
+        <div class="ans">mAP is the mean, over all classes, of each class's Average Precision (area under its precision–recall curve) at a given IoU threshold. Because the threshold changes the TP/FP counts, <b>mAP@0.5 and mAP@[.5:.95] are different numbers</b> — always state which.</div></details>
+      <details class="q"><summary>Why is R-CNN so slow at test time?</summary>
+        <div class="ans">It runs the CNN independently on each of ~2000 Selective Search proposals per image — no feature sharing — plus multi-stage training and disk-cached features.</div></details>
+      <details class="q"><summary>What single change defines Fast R-CNN?</summary>
+        <div class="ans">One shared CNN pass over the whole image, then <b>RoI pooling</b> projects each proposal onto the shared feature map to a fixed size — replacing 2000 CNN passes with one, and enabling a single multi-task loss.</div></details>
+      <details class="q"><summary>What makes Faster R-CNN "faster" than Fast R-CNN?</summary>
+        <div class="ans">The <b>Region Proposal Network (RPN)</b> — a small network that shares the backbone's features and generates proposals from anchors, replacing the slow external Selective Search and making the detector end-to-end trainable.</div></details>
+      <details class="q"><summary>State YOLO's core idea in one sentence.</summary>
+        <div class="ans">Treat detection as a <b>single regression</b> over an S×S grid, predicting all boxes, confidences and class probabilities in <b>one forward pass</b> — which is what makes it real-time.</div></details>
+      <details class="q"><summary>Is Detectron2 an architecture? Explain.</summary>
+        <div class="ans">No — it is a <b>library / framework</b> (FAIR, PyTorch) that <em>implements</em> many architectures such as Faster R-CNN, Mask R-CNN and RetinaNet, with a model zoo and config system. You build architectures inside it.</div></details>
+      <details class="q"><summary>Which detector family fits onboard real-time UAV use, and which fits offline mapping?</summary>
+        <div class="ans">Onboard, real-time → <b>one-stage (YOLO)</b> for speed on edge hardware. Offline, accuracy-critical → <b>two-stage (Faster R-CNN via Detectron2)</b>. Small-object recall from altitude usually drives the choice.</div></details>
+      <details class="q"><summary>What does NMS do and why is it needed?</summary>
+        <div class="ans">Non-Maximum Suppression keeps the highest-confidence box and discards others overlapping it above an IoU threshold, removing duplicate detections that would otherwise count as false positives.</div></details>
+    </div>
+
+    <div class="panel">
+      <div class="panel-t">Likely long-answer questions</div>
+      <ul class="kl">
+        <li>Define object detection and distinguish it from classification, localisation and segmentation with a diagram.</li>
+        <li>Explain bounding-box representations and anchor boxes. How does a network predict a box using offsets?</li>
+        <li>Define IoU, precision, recall, AP and mAP. Sketch a precision–recall curve and explain NMS.</li>
+        <li>Compare one-stage and two-stage detection architectures. Draw the backbone–neck–head pipeline.</li>
+        <li>Trace the evolution R-CNN → Fast R-CNN → Faster R-CNN. What bottleneck did each generation remove?</li>
+        <li>With a diagram, explain the working of Faster R-CNN and the role of the Region Proposal Network.</li>
+        <li>Explain the YOLO algorithm. Why is it suited to real-time UAV detection and where does it struggle?</li>
+        <li>What is Detectron2? Describe its structure and contrast a framework with an architecture.</li>
+        <li>Justify a detector choice for (a) live onboard obstacle detection and (b) offline crop-health mapping.</li>
+      </ul>
+    </div>
+  </section>
+
+  <!-- ================= KEY TAKEAWAYS ================= -->
+  <section class="leg" id="l12">
+    <div class="leg-head"><div class="leg-no">ARR</div><div>
+      <div class="leg-kicker">Arrival · what you carry off the aircraft</div><h2>Key Takeaways</h2></div></div>
+
+    <div class="headline">
+      <h3>If you remember only one thing</h3>
+      <p>Object detection is <b>classification plus a box, for every object at once</b>, scored by <b>IoU-based mAP</b>. Two families answer it: the <b>two-stage R-CNN line</b> (propose, then classify — accurate, and it got faster by pulling every external step inside the network) and the <b>one-stage YOLO line</b> (one pass, real-time). Which you fly on a UAV is a speed-versus-accuracy trade decided by where the computation runs.</p>
+    </div>
+
+    <div class="tk">
+      <div class="tk-item"><i>01</i><div><h4>Detection is the middle rung</h4>
+        <p>Classification names the image, localisation adds one box, detection outputs many class-labelled boxes, segmentation labels every pixel. This unit lives on detection — many objects, each its own box and confidence.</p></div></div>
+
+      <div class="tk-item"><i>02</i><div><h4>A box is four numbers, three notations</h4>
+        <p>Corner (x₁,y₁,x₂,y₂), centre (xᶜ,yᶜ,w,h) and COCO (x,y,w,h) describe the same rectangle. Networks predict small offsets from anchor boxes, not raw coordinates.</p></div></div>
+
+      <div class="tk-item"><i>03</i><div><h4>IoU is the root metric</h4>
+        <p>Overlap ÷ union. Everything — TP/FP/FN, precision, recall, AP, mAP — is built on IoU and the threshold you set on it. Always quote the threshold.</p></div></div>
+
+      <div class="tk-item"><i>04</i><div><h4>mAP is the headline score</h4>
+        <p>AP is the area under one class's precision–recall curve; mAP averages it over classes. NMS removes duplicate boxes before scoring; FPS measures the speed you trade against mAP.</p></div></div>
+
+      <div class="tk-item"><i>05</i><div><h4>Every detector is backbone → neck → head</h4>
+        <p>A CNN backbone extracts features, an FPN-style neck fuses scales, and a head predicts classes and boxes. Two-stage adds a proposal head; one-stage uses a single dense head.</p></div></div>
+
+      <div class="tk-item"><i>06</i><div><h4>R-CNN proved CNNs detect — slowly</h4>
+        <p>Selective Search proposes ~2000 regions, a CNN runs on each, SVMs classify. Learned features doubled accuracy but the per-region CNN made it unusably slow.</p></div></div>
+
+      <div class="tk-item"><i>07</i><div><h4>Fast R-CNN shares the backbone</h4>
+        <p>One CNN pass over the whole image, RoI pooling per proposal, a single network with a multi-task loss. Order-of-magnitude faster — but Selective Search is now the bottleneck.</p></div></div>
+
+      <div class="tk-item"><i>08</i><div><h4>Faster R-CNN learns the proposals</h4>
+        <p>The RPN generates proposals from anchors using shared features, replacing Selective Search and making the detector end-to-end. It is the foundation of Mask R-CNN.</p></div></div>
+
+      <div class="tk-item"><i>09</i><div><h4>YOLO looks once</h4>
+        <p>Detection becomes a single regression over an S×S grid, all boxes and classes emitted in one pass. Real-time and globally aware, historically weaker on small, clustered objects.</p></div></div>
+
+      <div class="tk-item"><i>10</i><div><h4>Detectron2 is a toolbox, not a model</h4>
+        <p>FAIR's modular PyTorch library implements Faster R-CNN, Mask R-CNN, RetinaNet and more, with a model zoo and config system, extending to instance and panoptic segmentation.</p></div></div>
+
+      <div class="tk-item"><i>11</i><div><h4>The UAV choice is speed vs accuracy</h4>
+        <p>Onboard and real-time favours a compact YOLO on edge hardware; offline and accuracy-critical favours Faster R-CNN via Detectron2. Small-object recall from altitude usually decides it.</p></div></div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-t">Abbreviations decoded <small>hover any underlined term for its meaning</small></div>
+      <div class="gloss no-abbr" id="gloss">
+        <div><b>AP</b> — Average Precision: area under one class's precision–recall curve.</div>
+        <div><b>mAP</b> — mean Average Precision: AP averaged over all classes, at a stated IoU threshold.</div>
+        <div><b>IoU</b> — Intersection over Union: overlap area ÷ union area of two boxes.</div>
+        <div><b>TP / FP / FN</b> — True Positive / False Positive / False Negative detections.</div>
+        <div><b>NMS</b> — Non-Maximum Suppression: removes overlapping duplicate boxes.</div>
+        <div><b>PR curve</b> — Precision–Recall curve traced by sweeping the confidence threshold.</div>
+        <div><b>FPS</b> — Frames Per Second: the speed axis for real-time detection.</div>
+        <div><b>CNN</b> — Convolutional Neural Network: the feature-extracting backbone.</div>
+        <div><b>R-CNN</b> — Regions with CNN features: the first CNN-based two-stage detector.</div>
+        <div><b>RoI</b> — Region of Interest: a candidate region pooled to a fixed size.</div>
+        <div><b>RoI pooling</b> — projects a proposal onto the shared feature map at fixed size.</div>
+        <div><b>RPN</b> — Region Proposal Network: learns proposals from anchors in Faster R-CNN.</div>
+        <div><b>Anchor / prior</b> — a reference box of fixed scale and aspect ratio.</div>
+        <div><b>Selective Search</b> — classical, non-learned region-proposal algorithm.</div>
+        <div><b>SVM</b> — Support Vector Machine: the per-class classifier used in R-CNN.</div>
+        <div><b>YOLO</b> — You Only Look Once: single-pass one-stage detector.</div>
+        <div><b>SSD</b> — Single Shot Detector: another one-stage architecture.</div>
+        <div><b>FPN</b> — Feature Pyramid Network: the multi-scale "neck".</div>
+        <div><b>Backbone</b> — pretrained CNN (VGG, ResNet, Darknet) that extracts features.</div>
+        <div><b>Head</b> — the prediction layers outputting class scores and box offsets.</div>
+        <div><b>Mask R-CNN</b> — Faster R-CNN plus a mask branch for instance segmentation.</div>
+        <div><b>Detectron2</b> — FAIR's modular PyTorch detection/segmentation library.</div>
+        <div><b>mAP@0.5</b> — mAP evaluated at a single IoU threshold of 0.50 (Pascal VOC).</div>
+        <div><b>mAP@[.5:.95]</b> — mAP averaged over IoU 0.50–0.95 (COCO standard).</div>
+        <div><b>FAIR</b> — Facebook / Meta AI Research, authors of Detectron2.</div>
+        <div><b>COCO</b> — Common Objects in Context: a benchmark detection dataset.</div>
+        <div><b>Pascal VOC</b> — an earlier benchmark detection dataset and metric.</div>
+        <div><b>Objectness</b> — a score for whether a box contains any object at all.</div>
+      </div>
+    </div>
+
+    <div class="foot">
+      <span>Unit III · UAV Object Detection Architectures</span>
+      <span>Interactive study notes · figures are illustrative teaching values</span>
+    </div>
+  </section>
+
+  </main>
+</div>
+
+<script>
+/* ============================================================
+   UAV Object-Detection playgrounds. Vanilla JS, no libraries,
+   no storage. Each mount <div data-pg="..."> is initialised below.
+   Drone imagery is drawn procedurally as a top-down (nadir) scene.
+   ============================================================ */
+(function(){
+"use strict";
+var SVGNS="http://www.w3.org/2000/svg";
+var INK="#151B13",INK2="#4C5548",MAG="#B3157E",BLUE="#1E5F8C",AMBER="#D98200",VEL="#F6F7F0";
+
+function el(tag,attrs,text){
+  var e=document.createElementNS(SVGNS,tag);
+  if(attrs)for(var k in attrs)e.setAttribute(k,attrs[k]);
+  if(text!=null)e.textContent=text;
+  return e;
+}
+function clamp(v,a,b){return v<a?a:v>b?b:v;}
+function fmt(n,d){return (Math.round(n*Math.pow(10,d))/Math.pow(10,d)).toFixed(d);}
+
+/* ---- box geometry (all boxes are {x,y,w,h}) ---- */
+function inter(a,b){
+  var x1=Math.max(a.x,b.x),y1=Math.max(a.y,b.y);
+  var x2=Math.min(a.x+a.w,b.x+b.w),y2=Math.min(a.y+a.h,b.y+b.h);
+  var w=x2-x1,h=y2-y1;
+  return (w>0&&h>0)?{x:x1,y:y1,w:w,h:h,area:w*h}:{x:x1,y:y1,w:0,h:0,area:0};
+}
+function iou(a,b){
+  var i=inter(a,b).area; if(i<=0)return 0;
+  return i/(a.w*a.h+b.w*b.h-i);
+}
+
+/* client->svg coord conversion */
+function localPt(svg,evt){
+  var pt=svg.createSVGPoint();
+  pt.x=evt.clientX; pt.y=evt.clientY;
+  return pt.matrixTransform(svg.getScreenCTM().inverse());
+}
+
+/* ============================================================
+   PROCEDURAL NADIR DRONE SCENE
+   Draws an aerial backdrop (asphalt/field) + objects. Objects
+   carry a ground-truth {x,y,w,h}. Returns the <g> so callers can
+   layer boxes above it.
+   ============================================================ */
+function drawScene(root,W,H,kind){
+  // backdrop
+  var defs=el("defs");
+  var noise=el("pattern",{id:"noise"+Math.random().toString(36).slice(2,7),width:5,height:5,patternUnits:"userSpaceOnUse"});
+  root.appendChild(defs);
+  // base ground
+  root.appendChild(el("rect",{x:0,y:0,width:W,height:H,fill: kind==="field"? "#B9C29A":"#B7BCA6"}));
+  var g=el("g");root.appendChild(g);
+
+  if(kind==="field"){
+    // crop rows
+    for(var yy=8;yy<H;yy+=14){
+      g.appendChild(el("line",{x1:0,y1:yy,x2:W,y2:yy,stroke:"#9BA97F","stroke-width":6,opacity:.35}));
+    }
+    // a dirt track
+    g.appendChild(el("path",{d:"M0 "+(H*0.7)+" C "+(W*0.3)+" "+(H*0.55)+","+(W*0.6)+" "+(H*0.85)+","+W+" "+(H*0.66),
+      fill:"none",stroke:"#C7B58A","stroke-width":18,opacity:.8}));
+  } else {
+    // parking lot: asphalt + bays + centre lane
+    g.appendChild(el("rect",{x:0,y:0,width:W,height:H,fill:"#9DA294",opacity:.5}));
+    for(var x=40;x<W-20;x+=52){
+      g.appendChild(el("line",{x1:x,y1:14,x2:x,y2:H*0.42,stroke:VEL,"stroke-width":2,opacity:.55}));
+      g.appendChild(el("line",{x1:x,y1:H*0.58,x2:x,y2:H-14,stroke:VEL,"stroke-width":2,opacity:.55}));
+    }
+    g.appendChild(el("line",{x1:20,y1:H*0.5,x2:W-20,y2:H*0.5,stroke:AMBER,"stroke-width":2,"stroke-dasharray":"14 10",opacity:.65}));
+  }
+  return g;
+}
+
+// a top-down car occupying its ground-truth box
+function drawCar(g,b,color){
+  color=color||"#3d4a55";
+  var pad=Math.min(b.w,b.h)*0.06;
+  g.appendChild(el("rect",{x:b.x+pad,y:b.y+pad,width:b.w-2*pad,height:b.h-2*pad,rx:Math.min(b.w,b.h)*0.16,
+    fill:color,stroke:"#0e1216","stroke-width":1}));
+  // roof / windshield (car points "up")
+  var vertical=b.h>=b.w;
+  if(vertical){
+    g.appendChild(el("rect",{x:b.x+b.w*0.22,y:b.y+b.h*0.30,width:b.w*0.56,height:b.h*0.34,rx:3,fill:"#8fa0ad",opacity:.9}));
+    g.appendChild(el("rect",{x:b.x+b.w*0.26,y:b.y+b.h*0.12,width:b.w*0.48,height:b.h*0.12,rx:2,fill:"#c7d2da",opacity:.85}));
+  } else {
+    g.appendChild(el("rect",{x:b.x+b.w*0.30,y:b.y+b.h*0.22,width:b.w*0.34,height:b.h*0.56,rx:3,fill:"#8fa0ad",opacity:.9}));
+    g.appendChild(el("rect",{x:b.x+b.w*0.12,y:b.y+b.h*0.26,width:b.w*0.12,height:b.h*0.48,rx:2,fill:"#c7d2da",opacity:.85}));
+  }
+}
+function drawPerson(g,b){
+  var cx=b.x+b.w/2,cy=b.y+b.h/2,r=Math.min(b.w,b.h)*0.30;
+  g.appendChild(el("ellipse",{cx:cx+2,cy:cy+3,rx:r*1.1,ry:r*0.7,fill:"#000",opacity:.18}));
+  g.appendChild(el("circle",{cx:cx,cy:cy-r*0.2,r:r*0.55,fill:"#caa27a",stroke:"#0e1216","stroke-width":.6}));
+  g.appendChild(el("ellipse",{cx:cx,cy:cy+r*0.5,rx:r*0.85,ry:r*0.6,fill:"#6b4f8c",stroke:"#0e1216","stroke-width":.6}));
+}
+function drawTree(g,b){
+  var cx=b.x+b.w/2,cy=b.y+b.h/2,r=Math.min(b.w,b.h)*0.5;
+  g.appendChild(el("circle",{cx:cx+2,cy:cy+3,r:r*0.92,fill:"#000",opacity:.15}));
+  g.appendChild(el("circle",{cx:cx,cy:cy,r:r*0.9,fill:"#4f7a43",stroke:"#2f4a28","stroke-width":1}));
+  g.appendChild(el("circle",{cx:cx-r*0.25,cy:cy-r*0.2,r:r*0.4,fill:"#5f8f50",opacity:.8}));
+}
+function drawObj(g,o){
+  if(o.t==="person")drawPerson(g,o.b);
+  else if(o.t==="tree")drawTree(g,o.b);
+  else drawCar(g,o.b,o.c);
+}
+
+/* box helper */
+function boxRect(attrs){return el("rect",attrs);}
+
+/* label chip in svg */
+function tag(g,x,y,txt,fill){
+  var t=el("text",{x:x,y:y,"font-family":"IBM Plex Mono,monospace","font-size":9.5,fill:fill||INK,"font-weight":600},txt);
+  g.appendChild(t);return t;
+}
+
+/* build a titled shell already exists in HTML; JS only fills [data-stage] etc. */
+
+/* ============================================================
+   1 · ANCHOR BOX LAB  (section l2)
+   ============================================================ */
+function initAnchors(mount){
+  var W=520,H=340;
+  var stage=mount.querySelector("[data-stage]");
+  var svg=el("svg",{viewBox:"0 0 "+W+" "+H,role:"img","aria-label":"Anchor box lab over a drone scene"});
+  stage.appendChild(svg);
+  drawScene(svg,W,H,"lot");
+  // target object (a car seen from altitude)
+  var target={x:214,y:150,w:96,h:64};
+  var sceneG=el("g");svg.appendChild(sceneG);
+  drawCar(sceneG,target,"#8a2f2f");
+  var gt=el("g");svg.appendChild(gt);
+  gt.appendChild(el("rect",{x:target.x,y:target.y,width:target.w,height:target.h,fill:"none",stroke:BLUE,"stroke-width":2}));
+  tag(gt,target.x,target.y-6,"GROUND TRUTH",BLUE);
+
+  var anchorsG=el("g");svg.appendChild(anchorsG);
+  var cellDot=el("circle",{r:4,fill:MAG});svg.appendChild(cellDot);
+
+  // controls
+  var scaleR=mount.querySelector("[data-scale]");
+  var arSel=mount.querySelector("[data-ar]");
+  var showAll=mount.querySelector("[data-all]");
+  var cx=262,cy=182; // anchor centre (also feature-map location)
+  var scales=[36,64,104], ars=[[1,1],[1.6,1],[1,1.6]];
+  var scaleIdx=1,arIdx=0,all=true;
+
+  function anchorBox(s,ar){
+    var w=s*ar[0], h=s*ar[1];
+    return {x:cx-w/2,y:cy-h/2,w:w,h:h};
+  }
+  function render(){
+    while(anchorsG.firstChild)anchorsG.removeChild(anchorsG.firstChild);
+    cellDot.setAttribute("cx",cx);cellDot.setAttribute("cy",cy);
+    var best=null,bestIou=-1,bestSel=null;
+    var combos=[];
+    for(var si=0;si<scales.length;si++)for(var ai=0;ai<ars.length;ai++)combos.push([si,ai]);
+    combos.forEach(function(c){
+      var isSel=(c[0]===scaleIdx&&c[1]===arIdx);
+      if(!all&&!isSel)return;
+      var b=anchorBox(scales[c[0]],ars[c[1]]);
+      var i=iou(b,target);
+      if(i>bestIou){bestIou=i;best=b;bestSel=c;}
+      anchorsG.appendChild(el("rect",{x:b.x,y:b.y,width:b.w,height:b.h,fill:"none",
+        stroke: isSel?MAG:INK2,"stroke-width":isSel?2:1,"stroke-dasharray":"5 4",opacity:isSel?1:.45}));
+    });
+    // highlight best-matching anchor
+    if(best){
+      anchorsG.appendChild(el("rect",{x:best.x,y:best.y,width:best.w,height:best.h,fill:MAG,opacity:.10}));
+    }
+    // readouts: deltas from SELECTED anchor to target (the regression target)
+    var sel=anchorBox(scales[scaleIdx],ars[arIdx]);
+    var selCx=sel.x+sel.w/2,selCy=sel.y+sel.h/2;
+    var tx=(target.x+target.w/2-selCx)/sel.w;
+    var ty=(target.y+target.h/2-selCy)/sel.h;
+    var tw=Math.log(target.w/sel.w), th=Math.log(target.h/sel.h);
+    var selIou=iou(sel,target);
+    mount.querySelector("[data-iou]").innerHTML=fmt(selIou,2);
+    mount.querySelector("[data-dx]").innerHTML=fmt(tx,2);
+    mount.querySelector("[data-dy]").innerHTML=fmt(ty,2);
+    mount.querySelector("[data-dw]").innerHTML=fmt(tw,2);
+    mount.querySelector("[data-dh]").innerHTML=fmt(th,2);
+    var bestTxt=mount.querySelector("[data-best]");
+    var isBest=bestSel&&bestSel[0]===scaleIdx&&bestSel[1]===arIdx;
+    bestTxt.innerHTML= isBest? "selected = best match" : "best is scale "+(bestSel[0]+1)+" · ar "+["1:1","1.6:1","1:1.6"][bestSel[1]];
+    bestTxt.style.color= isBest?BLUE:AMBER;
+  }
+  scaleR.addEventListener("input",function(){scaleIdx=+this.value;mount.querySelector("[data-scaleval]").textContent=["small","medium","large"][scaleIdx];render();});
+  arSel.querySelectorAll("button").forEach(function(b,i){
+    b.addEventListener("click",function(){arIdx=i;arSel.querySelectorAll("button").forEach(function(x){x.classList.remove("on");});b.classList.add("on");render();});
+  });
+  showAll.addEventListener("click",function(){all=!all;this.classList.toggle("on",all);this.textContent=all?"showing all 9":"show all 9";render();});
+  // drag the feature-map location
+  var dragging=false;
+  svg.addEventListener("pointerdown",function(e){var p=localPt(svg,e);if(Math.hypot(p.x-cx,p.y-cy)<26){dragging=true;svg.setPointerCapture(e.pointerId);}});
+  svg.addEventListener("pointermove",function(e){if(!dragging)return;var p=localPt(svg,e);cx=clamp(p.x,20,W-20);cy=clamp(p.y,20,H-20);render();});
+  svg.addEventListener("pointerup",function(){dragging=false;});
+  render();
+}
+
+/* ============================================================
+   2 · IoU EXPLORER  (section l3)
+   ============================================================ */
+function initIoU(mount){
+  var W=520,H=330;
+  var stage=mount.querySelector("[data-stage]");
+  var svg=el("svg",{viewBox:"0 0 "+W+" "+H,role:"img","aria-label":"IoU explorer: drag a prediction box over a drone scene"});
+  stage.appendChild(svg);
+  drawScene(svg,W,H,"lot");
+  var target={x:190,y:150,w:120,h:78};
+  var sg=el("g");svg.appendChild(sg);drawCar(sg,target,"#2f5a8a");
+
+  var interG=el("g");svg.appendChild(interG);
+  var gtG=el("g");svg.appendChild(gtG);
+  gtG.appendChild(el("rect",{x:target.x,y:target.y,width:target.w,height:target.h,fill:BLUE,"fill-opacity":.10,stroke:BLUE,"stroke-width":2}));
+  tag(gtG,target.x,target.y-6,"GROUND TRUTH",BLUE);
+
+  // prediction box (draggable body + resize handle)
+  var pred={x:236,y:178,w:120,h:78};
+  var pg=el("g");svg.appendChild(pg);
+  var pRect=el("rect",{fill:"none",stroke:MAG,"stroke-width":2,"stroke-dasharray":"7 4",cursor:"move"});
+  var pFill=el("rect",{fill:MAG,"fill-opacity":.06,cursor:"move"});
+  var handle=el("rect",{width:14,height:14,fill:MAG,cursor:"nwse-resize"});
+  var pLbl;
+  pg.appendChild(pFill);pg.appendChild(pRect);pg.appendChild(handle);
+
+  // hatch pattern for intersection
+  var defs=svg.querySelector("defs");
+  var pat=el("pattern",{id:"iouhatch",width:8,height:8,patternTransform:"rotate(45)",patternUnits:"userSpaceOnUse"});
+  pat.appendChild(el("line",{x1:0,y1:0,x2:0,y2:8,stroke:INK,"stroke-width":1.6,opacity:.55}));
+  defs.appendChild(pat);
+
+  function render(){
+    ["x","y","w","h"].forEach(function(){});
+    pRect.setAttribute("x",pred.x);pRect.setAttribute("y",pred.y);pRect.setAttribute("width",pred.w);pRect.setAttribute("height",pred.h);
+    pFill.setAttribute("x",pred.x);pFill.setAttribute("y",pred.y);pFill.setAttribute("width",pred.w);pFill.setAttribute("height",pred.h);
+    handle.setAttribute("x",pred.x+pred.w-7);handle.setAttribute("y",pred.y+pred.h-7);
+    while(interG.firstChild)interG.removeChild(interG.firstChild);
+    var ii=inter(pred,target);
+    if(ii.area>0)interG.appendChild(el("rect",{x:ii.x,y:ii.y,width:ii.w,height:ii.h,fill:"url(#iouhatch)"}));
+    var v=iou(pred,target);
+    var uni=pred.w*pred.h+target.w*target.h-ii.area;
+    mount.querySelector("[data-iou]").innerHTML=fmt(v,2);
+    mount.querySelector("[data-int]").innerHTML=Math.round(ii.area)+"<s>px²</s>";
+    mount.querySelector("[data-uni]").innerHTML=Math.round(uni)+"<s>px²</s>";
+    var thr=+mount.querySelector("[data-thr]").value/100;
+    mount.querySelector("[data-thrval]").textContent=fmt(thr,2);
+    var verd=mount.querySelector("[data-verdict]");
+    if(v>=thr){verd.textContent="TRUE POSITIVE";verd.className="pg-verdict tp";}
+    else{verd.textContent="FALSE POSITIVE / MISS";verd.className="pg-verdict fp";}
+  }
+  // dragging logic
+  var mode=null,off={x:0,y:0};
+  svg.addEventListener("pointerdown",function(e){
+    var p=localPt(svg,e);
+    if(p.x>=pred.x+pred.w-12&&p.x<=pred.x+pred.w+6&&p.y>=pred.y+pred.h-12&&p.y<=pred.y+pred.h+6){mode="resize";}
+    else if(p.x>=pred.x&&p.x<=pred.x+pred.w&&p.y>=pred.y&&p.y<=pred.y+pred.h){mode="move";off.x=p.x-pred.x;off.y=p.y-pred.y;}
+    else return;
+    svg.setPointerCapture(e.pointerId);
+  });
+  svg.addEventListener("pointermove",function(e){
+    if(!mode)return;var p=localPt(svg,e);
+    if(mode==="move"){pred.x=clamp(p.x-off.x,0,W-pred.w);pred.y=clamp(p.y-off.y,0,H-pred.h);}
+    else{pred.w=clamp(p.x-pred.x,24,W-pred.x);pred.h=clamp(p.y-pred.y,24,H-pred.y);}
+    render();
+  });
+  svg.addEventListener("pointerup",function(){mode=null;});
+  mount.querySelector("[data-thr]").addEventListener("input",render);
+  mount.querySelector("[data-reset]").addEventListener("click",function(){pred={x:236,y:178,w:120,h:78};render();});
+  render();
+}
+
+/* ============================================================
+   3 · NMS SIMULATOR  (section l3)
+   ============================================================ */
+function initNMS(mount){
+  var W=520,H=330;
+  var stage=mount.querySelector("[data-stage]");
+  var svg=el("svg",{viewBox:"0 0 "+W+" "+H,role:"img","aria-label":"Non-maximum suppression simulator over a drone scene"});
+  stage.appendChild(svg);
+  drawScene(svg,W,H,"lot");
+  var cars=[{x:70,y:120,w:96,h:62},{x:250,y:70,w:96,h:60},{x:330,y:200,w:100,h:64}];
+  var sg=el("g");svg.appendChild(sg);
+  cars.forEach(function(c,i){drawCar(sg,c,["#7a3030","#2f5a8a","#5a6a2f"][i]);});
+  // raw detections: several jittered boxes per car with confidences
+  function jit(c,dx,dy,dw,conf){return {x:c.x+dx,y:c.y+dy,w:c.w+dw,h:c.h+dw*0.6,conf:conf,state:"raw"};}
+  var raw=[];
+  raw.push(jit(cars[0],-6,-4,10,.92),jit(cars[0],8,10,-8,.74),jit(cars[0],-14,6,4,.55));
+  raw.push(jit(cars[1],4,-6,6,.88),jit(cars[1],-10,8,-4,.63));
+  raw.push(jit(cars[2],6,4,8,.81),jit(cars[2],-8,-6,-6,.69),jit(cars[2],12,10,2,.5));
+  var boxG=el("g");svg.appendChild(boxG);
+
+  var step=0,order=null;
+  function reset(){
+    raw.forEach(function(b){b.state="raw";});
+    step=0;order=null;
+    mount.querySelector("[data-run]").disabled=false;
+    mount.querySelector("[data-step]").disabled=false;
+    render();
+  }
+  function computeOrder(){
+    return raw.map(function(b,i){return i;}).sort(function(a,b){return raw[b].conf-raw[a].conf;});
+  }
+  function doStep(){
+    if(!order)order=computeOrder();
+    // find next undecided highest-confidence box
+    while(step<order.length&&raw[order[step]].state!=="raw")step++;
+    if(step>=order.length){finish();return;}
+    var keepIdx=order[step];var keep=raw[keepIdx];keep.state="keep";
+    var thr=+mount.querySelector("[data-iou]").value/100;
+    order.forEach(function(oi){
+      var b=raw[oi];
+      if(b.state==="raw"&&iou(b,keep)>=thr)b.state="suppress";
+    });
+    step++;render();
+    if(step>=order.length)finish();
+  }
+  function finish(){
+    raw.forEach(function(b){if(b.state==="raw")b.state="keep";});
+    mount.querySelector("[data-run]").disabled=true;
+    mount.querySelector("[data-step]").disabled=true;
+    render();
+  }
+  function render(){
+    while(boxG.firstChild)boxG.removeChild(boxG.firstChild);
+    var conf=+mount.querySelector("[data-conf]").value/100;
+    var kept=0,supp=0,shown=0;
+    raw.forEach(function(b){
+      if(b.conf<conf){return;} // filtered before NMS
+      shown++;
+      var col=b.state==="keep"?BLUE:b.state==="suppress"?AMBER:INK2;
+      var op=b.state==="suppress"?.5:1;
+      var dash=b.state==="keep"?"":"6 4";
+      boxG.appendChild(el("rect",{x:b.x,y:b.y,width:b.w,height:b.h,fill:"none",stroke:col,"stroke-width":b.state==="keep"?2.4:1.4,"stroke-dasharray":dash,opacity:op}));
+      var t=tag(boxG,b.x+2,b.y-3,fmt(b.conf,2),col);t.setAttribute("opacity",op);
+      if(b.state==="keep")kept++; if(b.state==="suppress")supp++;
+    });
+    mount.querySelector("[data-raw]").textContent=shown;
+    mount.querySelector("[data-kept]").textContent=kept;
+    mount.querySelector("[data-supp]").textContent=supp;
+    mount.querySelector("[data-thrval]").textContent=fmt(+mount.querySelector("[data-iou]").value/100,2);
+    mount.querySelector("[data-confval]").textContent=fmt(conf,2);
+  }
+  mount.querySelector("[data-iou]").addEventListener("input",reset);
+  mount.querySelector("[data-conf]").addEventListener("input",function(){reset();});
+  mount.querySelector("[data-step]").addEventListener("click",doStep);
+  mount.querySelector("[data-run]").addEventListener("click",function(){var guard=0;while((mount.querySelector("[data-step]").disabled===false)&&guard++<50)doStep();});
+  mount.querySelector("[data-reset]").addEventListener("click",reset);
+  reset();
+}
+
+/* ============================================================
+   4 · PRECISION / RECALL / mAP  (section l3)
+   ============================================================ */
+function initPR(mount){
+  var W=520,H=300;
+  var stage=mount.querySelector("[data-stage]");
+  var svg=el("svg",{viewBox:"0 0 "+W+" "+H,role:"img","aria-label":"Precision recall playground over a drone scene"});
+  stage.appendChild(svg);
+  drawScene(svg,W,H,"field");
+  // 8 detections: some real objects (TP-eligible), some spurious (always FP)
+  // model gives each a confidence; we sweep a threshold.
+  var dets=[
+    {x:40,y:60,w:40,h:26,conf:.95,real:true},
+    {x:150,y:40,w:36,h:24,conf:.88,real:true},
+    {x:250,y:150,w:42,h:26,conf:.82,real:true},
+    {x:430,y:190,w:40,h:26,conf:.78,real:false}, // strong false alarm — dents precision early
+    {x:360,y:70,w:38,h:24,conf:.71,real:true},
+    {x:300,y:230,w:36,h:24,conf:.66,real:false},
+    {x:120,y:200,w:40,h:26,conf:.6,real:true},
+    {x:80,y:250,w:34,h:22,conf:.40,real:false}
+  ];
+  var totalObjects=5; // ground-truth object count for recall denominator
+  var sg=el("g");svg.appendChild(sg);
+  dets.forEach(function(d){ if(d.real)drawCar(sg,d,"#5a3f2f"); });
+  var boxG=el("g");svg.appendChild(boxG);
+
+  function render(){
+    while(boxG.firstChild)boxG.removeChild(boxG.firstChild);
+    var thr=+mount.querySelector("[data-conf]").value/100;
+    var tp=0,fp=0;
+    dets.forEach(function(d){
+      if(d.conf<thr)return;
+      if(d.real)tp++;else fp++;
+      var col=d.real?BLUE:MAG;
+      boxG.appendChild(el("rect",{x:d.x,y:d.y,width:d.w,height:d.h,fill:"none",stroke:col,"stroke-width":2}));
+      tag(boxG,d.x,d.y-3,fmt(d.conf,2),col);
+    });
+    var fn=totalObjects-tp;
+    var prec=(tp+fp)>0?tp/(tp+fp):1;
+    var rec=totalObjects>0?tp/totalObjects:0;
+    mount.querySelector("[data-tp]").textContent=tp;
+    mount.querySelector("[data-fp]").textContent=fp;
+    mount.querySelector("[data-fn]").textContent=fn;
+    mount.querySelector("[data-prec]").innerHTML=fmt(prec,2);
+    mount.querySelector("[data-rec]").innerHTML=fmt(rec,2);
+    mount.querySelector("[data-confval]").textContent=fmt(thr,2);
+    drawCurve(thr);
+  }
+  // PR curve panel (separate small svg)
+  var cv=mount.querySelector("[data-curve]");
+  var cW=300,cH=220,pad=34;
+  var csvg=el("svg",{viewBox:"0 0 "+cW+" "+cH,role:"img","aria-label":"precision recall curve"});
+  cv.appendChild(csvg);
+  function px(r){return pad+r*(cW-pad-14);}
+  function py(p){return (cH-pad)-p*(cH-pad-14);}
+  function prAt(thr){
+    var tp=0,fp=0;
+    dets.forEach(function(d){if(d.conf>=thr){if(d.real)tp++;else fp++;}});
+    var prec=(tp+fp)>0?tp/(tp+fp):1;
+    var rec=tp/totalObjects;
+    return {p:prec,r:rec};
+  }
+  function drawCurve(curThr){
+    while(csvg.firstChild)csvg.removeChild(csvg.firstChild);
+    // axes
+    csvg.appendChild(el("rect",{x:0,y:0,width:cW,height:cH,fill:"#fff"}));
+    csvg.appendChild(el("line",{x1:pad,y1:pad-8,x2:pad,y2:cH-pad,stroke:INK,"stroke-width":1.2}));
+    csvg.appendChild(el("line",{x1:pad,y1:cH-pad,x2:cW-8,y2:cH-pad,stroke:INK,"stroke-width":1.2}));
+    tag(csvg,pad-4,pad-12,"precision",INK2);
+    tag(csvg,cW-58,cH-pad+16,"recall",INK2);
+    for(var t=0;t<=1.0001;t+=.25){
+      csvg.appendChild(el("line",{x1:px(t),y1:pad-8,x2:px(t),y2:cH-pad,stroke:INK2,"stroke-width":.4,opacity:.3}));
+      csvg.appendChild(el("line",{x1:pad,y1:py(t),x2:cW-8,y2:py(t),stroke:INK2,"stroke-width":.4,opacity:.3}));
+      tag(csvg,px(t)-6,cH-pad+14,fmt(t,1),INK2);
+      tag(csvg,6,py(t)+3,fmt(t,1),INK2);
+    }
+    // sweep thresholds high->low, build PR points (interpolated AP via trapezoid)
+    var confs=dets.map(function(d){return d.conf;}).slice().sort(function(a,b){return b-a;});
+    var pts=[{p:1,r:0}];
+    confs.forEach(function(c){pts.push(prAt(c));});
+    // area (AP) under P-R using the raw points
+    var ap=0;
+    for(var i=1;i<pts.length;i++){ap+=(pts[i].r-pts[i-1].r)*((pts[i].p+pts[i-1].p)/2);}
+    // shaded area
+    var dArea="M"+px(0)+","+py(0);
+    pts.forEach(function(pt){dArea+=" L"+px(pt.r)+","+py(pt.p);});
+    dArea+=" L"+px(pts[pts.length-1].r)+","+py(0)+" Z";
+    csvg.appendChild(el("path",{d:dArea,fill:MAG,opacity:.12}));
+    // curve line
+    var dLine="M"+px(pts[0].r)+","+py(pts[0].p);
+    pts.forEach(function(pt){dLine+=" L"+px(pt.r)+","+py(pt.p);});
+    csvg.appendChild(el("path",{d:dLine,fill:"none",stroke:MAG,"stroke-width":2}));
+    pts.forEach(function(pt){csvg.appendChild(el("circle",{cx:px(pt.r),cy:py(pt.p),r:2.5,fill:MAG}));});
+    // current operating point
+    var cur=prAt(curThr);
+    csvg.appendChild(el("circle",{cx:px(cur.r),cy:py(cur.p),r:5,fill:"none",stroke:BLUE,"stroke-width":2.4}));
+    csvg.appendChild(el("circle",{cx:px(cur.r),cy:py(cur.p),r:2,fill:BLUE}));
+    mount.querySelector("[data-ap]").innerHTML=fmt(ap,2);
+  }
+  mount.querySelector("[data-conf]").addEventListener("input",render);
+  render();
+}
+
+/* ============================================================
+   5 · R-CNN -> FAST -> FASTER  (section l7)
+   ============================================================ */
+function initEvolution(mount){
+  var W=520,H=300;
+  var stage=mount.querySelector("[data-stage]");
+  var svg=el("svg",{viewBox:"0 0 "+W+" "+H,role:"img","aria-label":"R-CNN generation cost simulator"});
+  stage.appendChild(svg);
+  drawScene(svg,W,H,"lot");
+  var objs=[{x:60,y:90,w:80,h:52},{x:220,y:60,w:82,h:52},{x:330,y:170,w:88,h:56},{x:150,y:200,w:78,h:50}];
+  var sg=el("g");svg.appendChild(sg);objs.forEach(function(o,i){drawCar(sg,o,["#7a3030","#2f5a8a","#5a6a2f","#5a3f7a"][i]);});
+  var propG=el("g");svg.appendChild(propG);
+  var scanG=el("g");svg.appendChild(scanG);
+
+  var gen="rcnn";
+  var data={
+    rcnn:{prop:"Selective Search (external)",passes:"~2000",time:"~47 s",train:"3 stages, separate",bottleneck:"2000 CNN passes — one per region",nprop:34,color:INK2,learned:false},
+    fast:{prop:"Selective Search (external)",passes:"1 shared + RoI pool",time:"~2 s",train:"1 network, multi-task loss",bottleneck:"Selective Search is now the slow step",nprop:20,color:AMBER,learned:false},
+    faster:{prop:"Learned RPN (internal)",passes:"1 shared (RPN + head)",time:"~0.2 s",train:"end-to-end",bottleneck:"none of the above — fully learned",nprop:9,color:BLUE,learned:true}
+  };
+  function rnd(seed){var x=Math.sin(seed)*10000;return x-Math.floor(x);}
+  function render(){
+    var d=data[gen];
+    while(propG.firstChild)propG.removeChild(propG.firstChild);
+    while(scanG.firstChild)scanG.removeChild(scanG.firstChild);
+    // proposals: scattered candidate boxes (RPN=on-anchor near objects; SS=noisier)
+    for(var i=0;i<d.nprop;i++){
+      var bx,by,bw,bh;
+      if(d.learned){ // anchors clustered on objects
+        var o=objs[i%objs.length];
+        bx=o.x+(rnd(i)*30-15);by=o.y+(rnd(i+7)*30-15);bw=o.w+(rnd(i+3)*30-15);bh=o.h+(rnd(i+5)*24-12);
+      } else {
+        bx=rnd(i)*W*0.85;by=rnd(i+11)*H*0.8;bw=30+rnd(i+2)*80;bh=24+rnd(i+4)*60;
+      }
+      propG.appendChild(el("rect",{x:bx,y:by,width:bw,height:bh,fill:"none",stroke:d.color,"stroke-width":1,opacity:d.learned?.7:.4,"stroke-dasharray":"4 3"}));
+    }
+    // scan indicator
+    if(gen==="rcnn"){
+      scanG.appendChild(el("rect",{x:0,y:0,width:W,height:H,fill:AMBER,opacity:.05}));
+      tag(scanG,12,H-12,"CNN re-run per region → redundant compute",AMBER);
+    } else if(gen==="fast"){
+      scanG.appendChild(el("rect",{x:0,y:0,width:W,height:H,fill:BLUE,opacity:.04}));
+      tag(scanG,12,H-12,"one feature map, shared by all proposals",BLUE);
+    } else {
+      tag(scanG,12,H-12,"RPN proposes from shared features — end-to-end",BLUE);
+    }
+    mount.querySelector("[data-prop]").textContent=d.prop;
+    mount.querySelector("[data-passes]").innerHTML=d.passes;
+    mount.querySelector("[data-time]").innerHTML=d.time;
+    mount.querySelector("[data-train]").textContent=d.train;
+    mount.querySelector("[data-bottleneck]").textContent=d.bottleneck;
+    // fps bar
+    var fps={rcnn:0.02,fast:0.5,faster:5};
+    var bar=mount.querySelector("[data-fpsbar]");
+    bar.style.width=clamp(Math.log10(fps[gen]*100+1)/Math.log10(600)*100,3,100)+"%";
+    mount.querySelector("[data-fps]").innerHTML=(fps[gen]<1?fmt(fps[gen],2):fmt(fps[gen],1))+"<s> fps</s>";
+  }
+  mount.querySelectorAll("[data-gen] button").forEach(function(b){
+    b.addEventListener("click",function(){
+      gen=b.getAttribute("data-g");
+      mount.querySelectorAll("[data-gen] button").forEach(function(x){x.classList.remove("on");});
+      b.classList.add("on");render();
+    });
+  });
+  render();
+}
+
+/* ============================================================
+   6 · YOLO GRID  (section l8)
+   ============================================================ */
+function initYOLO(mount){
+  var W=460,H=460;
+  var stage=mount.querySelector("[data-stage]");
+  var svg=el("svg",{viewBox:"0 0 "+W+" "+H,role:"img","aria-label":"YOLO grid playground over a drone scene"});
+  stage.appendChild(svg);
+  drawScene(svg,W,H,"field");
+  var objs=[
+    {t:"car",b:{x:70,y:90,w:70,h:44},c:"#7a3030"},
+    {t:"car",b:{x:300,y:150,w:66,h:44},c:"#2f5a8a"},
+    {t:"person",b:{x:180,y:260,w:26,h:34}},
+    {t:"person",b:{x:210,y:250,w:24,h:34}},
+    {t:"tree",b:{x:360,y:330,w:70,h:70}},
+    {t:"car",b:{x:120,y:360,w:74,h:46},c:"#5a6a2f"}
+  ];
+  var sg=el("g");svg.appendChild(sg);objs.forEach(function(o){drawObj(sg,o);});
+  var gridG=el("g");svg.appendChild(gridG);
+  var ownG=el("g");svg.appendChild(ownG);
+
+  function render(){
+    var S=+mount.querySelector("[data-s]").value;
+    var B=+mount.querySelector("[data-b]").value;
+    var C=+mount.querySelector("[data-c]").value;
+    mount.querySelector("[data-sval]").textContent=S+"×"+S;
+    mount.querySelector("[data-bval]").textContent=B;
+    mount.querySelector("[data-cval]").textContent=C;
+    while(gridG.firstChild)gridG.removeChild(gridG.firstChild);
+    while(ownG.firstChild)ownG.removeChild(ownG.firstChild);
+    var cell=W/S;
+    for(var i=1;i<S;i++){
+      gridG.appendChild(el("line",{x1:i*cell,y1:0,x2:i*cell,y2:H,stroke:VEL,"stroke-width":1,opacity:.5}));
+      gridG.appendChild(el("line",{x1:0,y1:i*cell,x2:W,y2:i*cell,stroke:VEL,"stroke-width":1,opacity:.5}));
+    }
+    // each object is "owned" by the cell containing its centre
+    var ownedCells={};
+    objs.forEach(function(o){
+      var cx=o.b.x+o.b.w/2,cy=o.b.y+o.b.h/2;
+      var gx=Math.floor(cx/cell),gy=Math.floor(cy/cell);
+      var key=gx+","+gy;
+      var clash=ownedCells[key];
+      ownedCells[key]=true;
+      ownG.appendChild(el("rect",{x:gx*cell,y:gy*cell,width:cell,height:cell,
+        fill: clash?AMBER:MAG,opacity: clash?.28:.16, stroke: clash?AMBER:MAG,"stroke-width":1.5}));
+      ownG.appendChild(el("circle",{cx:cx,cy:cy,r:3,fill:clash?AMBER:MAG}));
+      ownG.appendChild(el("rect",{x:o.b.x,y:o.b.y,width:o.b.w,height:o.b.h,fill:"none",stroke:MAG,"stroke-width":1.6,"stroke-dasharray":"5 3"}));
+    });
+    // count clashes (cells owning >1 object => YOLOv1 weakness)
+    var counts={},clashes=0;
+    objs.forEach(function(o){var cx=o.b.x+o.b.w/2,cy=o.b.y+o.b.h/2;var k=Math.floor(cx/cell)+","+Math.floor(cy/cell);counts[k]=(counts[k]||0)+1;});
+    for(var k in counts)if(counts[k]>1)clashes+=counts[k]-1;
+    var tensor=S+" × "+S+" × ("+B+"·5 + "+C+")";
+    var nums=S*S*(B*5+C);
+    mount.querySelector("[data-tensor]").innerHTML=tensor;
+    mount.querySelector("[data-nums]").innerHTML=nums.toLocaleString()+' <span class="c">values</span>';
+    mount.querySelector("[data-clash]").textContent=clashes;
+    var warn=mount.querySelector("[data-clashwarn]");
+    warn.style.display=clashes>0?"block":"none";
+  }
+  ["[data-s]","[data-b]","[data-c]"].forEach(function(sel){mount.querySelector(sel).addEventListener("input",render);});
+  render();
+}
+
+/* ============================================================
+   7 · DETECTRON2 CONFIG BUILDER  (section l9)
+   ============================================================ */
+function initDetectron(mount){
+  var meta="faster_rcnn",back="R_50_FPN",task="bbox";
+  var metaInfo={
+    faster_rcnn:{name:"Faster R-CNN",family:"two-stage",onboard:false,seg:false},
+    mask_rcnn:{name:"Mask R-CNN",family:"two-stage",onboard:false,seg:true},
+    retinanet:{name:"RetinaNet",family:"one-stage",onboard:true,seg:false}
+  };
+  var taskInfo={bbox:"object detection (boxes)",segm:"instance segmentation",panoptic:"panoptic segmentation",keypoint:"keypoint / pose"};
+  function render(){
+    var m=metaInfo[meta];
+    // task availability
+    var taskBtns=mount.querySelectorAll("[data-task] button");
+    taskBtns.forEach(function(b){
+      var t=b.getAttribute("data-t");
+      var ok=true;
+      if((t==="segm"||t==="panoptic")&&!m.seg)ok=false;
+      if(t==="keypoint"&&meta!=="mask_rcnn")ok=false;
+      b.disabled=!ok;
+      if(!ok&&b.classList.contains("on")){b.classList.remove("on");task="bbox";
+        mount.querySelector('[data-task] button[data-t="bbox"]').classList.add("on");}
+    });
+    var cfg=
+      '<span class="c"># Detectron2 config — assembled, not coded</span>\n'+
+      'MODEL:\n'+
+      '  META_ARCHITECTURE: <span class="v">"'+({faster_rcnn:"GeneralizedRCNN",mask_rcnn:"GeneralizedRCNN",retinanet:"RetinaNet"}[meta])+'"</span>\n'+
+      '  <span class="k">BACKBONE</span>: <span class="v">"'+back+'"</span>\n'+
+      '  <span class="k">HEAD</span>: <span class="v">"'+m.name+'"</span>\n'+
+      'TASK: <span class="v">"'+taskInfo[task]+'"</span>\n'+
+      'FAMILY: <span class="v">"'+m.family+'"</span>   <span class="c"># decided by the meta-arch, not by Detectron2</span>';
+    mount.querySelector("[data-cfg]").innerHTML=cfg;
+    var place=mount.querySelector("[data-place]");
+    if(m.onboard){place.innerHTML='one-stage → light enough to consider <b>onboard</b>, though Detectron2 itself is usually run on a ground station';place.className="pg-note";place.style.borderColor="rgba(30,95,140,.5)";place.style.background="rgba(30,95,140,.08)";}
+    else{place.innerHTML='<b>Ground station / offline.</b> Two-stage accuracy at the cost of latency — the classic post-flight mapping choice.';place.className="pg-note";place.style.borderColor="rgba(217,130,0,.45)";place.style.background="rgba(217,130,0,.1)";}
+  }
+  mount.querySelectorAll("[data-meta] button").forEach(function(b){
+    b.addEventListener("click",function(){meta=b.getAttribute("data-m");mount.querySelectorAll("[data-meta] button").forEach(function(x){x.classList.remove("on");});b.classList.add("on");render();});
+  });
+  mount.querySelectorAll("[data-back] button").forEach(function(b){
+    b.addEventListener("click",function(){back=b.getAttribute("data-bk");mount.querySelectorAll("[data-back] button").forEach(function(x){x.classList.remove("on");});b.classList.add("on");render();});
+  });
+  mount.querySelectorAll("[data-task] button").forEach(function(b){
+    b.addEventListener("click",function(){if(b.disabled)return;task=b.getAttribute("data-t");mount.querySelectorAll("[data-task] button").forEach(function(x){x.classList.remove("on");});b.classList.add("on");render();});
+  });
+  render();
+}
+
+/* ============================================================
+   8 · MISSION -> DETECTOR CHOOSER  (section l10)
+   ============================================================ */
+function initChooser(mount){
+  var where="onboard",need="speed",size="small";
+  function render(){
+    var twoStage = (where==="ground") && (need==="accuracy" || size==="small");
+    var pick,why,fam;
+    if(twoStage){
+      fam="two-stage"; pick="Faster R-CNN / Mask R-CNN via Detectron2";
+      why="No latency deadline on the ground, and accuracy on small or dense targets is where the region-proposal pipeline pulls ahead.";
+    } else if(where==="onboard"){
+      fam="one-stage"; pick="a compact YOLO (quantised for the edge board)";
+      why="Onboard means a Jetson-class budget and a hard latency deadline — a single-pass detector is the only thing that keeps up with the video.";
+    } else {
+      fam="one-stage"; pick="YOLO (full-size), or Faster R-CNN if accuracy dominates";
+      why="On the ground without a small-object problem, a fast one-stage model is usually enough; swap to two-stage only if recall on tiny objects matters.";
+    }
+    mount.querySelector("[data-fam]").textContent=fam;
+    mount.querySelector("[data-fam]").className="pg-verdict "+(fam==="two-stage"?"fp":"tp");
+    mount.querySelector("[data-pick]").textContent=pick;
+    mount.querySelector("[data-why]").textContent=why;
+  }
+  function wire(attr,setter){
+    mount.querySelectorAll("["+attr+"] button").forEach(function(b){
+      b.addEventListener("click",function(){setter(b.getAttribute("data-val"));
+        b.parentNode.querySelectorAll("button").forEach(function(x){x.classList.remove("on");});b.classList.add("on");render();});
+    });
+  }
+  wire("data-where",function(v){where=v;});
+  wire("data-need",function(v){need=v;});
+  wire("data-size",function(v){size=v;});
+  render();
+}
+
+/* ---- progress bar + active-rail scroll spy (page had CSS, no JS) ---- */
+function initChrome(){
+  var fill=document.getElementById("progFill"),txt=document.getElementById("progTxt");
+  var legs=[].slice.call(document.querySelectorAll("section.leg"));
+  var rail=[].slice.call(document.querySelectorAll(".rail a"));
+  function onScroll(){
+    var h=document.documentElement;
+    var p=h.scrollTop/(h.scrollHeight-h.clientHeight);
+    p=clamp(p,0,1);
+    if(fill)fill.style.width=(p*100)+"%";
+    if(txt)txt.textContent=Math.round(p*100)+"%";
+    var cur=null;
+    legs.forEach(function(s){if(s.getBoundingClientRect().top<140)cur=s.id;});
+    rail.forEach(function(a){a.classList.toggle("on",a.getAttribute("href")==="#"+cur);});
+  }
+  window.addEventListener("scroll",onScroll,{passive:true});
+  onScroll();
+}
+
+/* ---- dispatch ---- */
+var registry={anchors:initAnchors,iou:initIoU,nms:initNMS,pr:initPR,evolution:initEvolution,yolo:initYOLO,detectron:initDetectron,chooser:initChooser};
+function boot(){
+  document.querySelectorAll("[data-pg]").forEach(function(m){
+    var fn=registry[m.getAttribute("data-pg")];
+    if(fn)try{fn(m);}catch(err){console.error("playground",m.getAttribute("data-pg"),err);}
+  });
+  initChrome();
+}
+if(document.readyState!=="loading")boot();else document.addEventListener("DOMContentLoaded",boot);
+})();
+
+</script>
+</body>
+</html>
